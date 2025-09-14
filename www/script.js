@@ -227,6 +227,9 @@ window.sortTable = function(tableBodyId, columnIndex) {
     const isAscending = !sortDirections[sortKey];
     sortDirections[sortKey] = isAscending;
 
+    // Atualiza os ícones de ordenação
+    updateSortIcons(tableBodyId, columnIndex, isAscending);
+
     rows.sort((a, b) => {
         const cellA = a.cells[columnIndex].textContent.trim();
         const cellB = b.cells[columnIndex].textContent.trim();
@@ -259,6 +262,37 @@ window.sortTable = function(tableBodyId, columnIndex) {
     // Reinsere as linhas ordenadas
     rows.forEach(row => tableBody.appendChild(row));
 };
+
+function updateSortIcons(tableBodyId, activeColumnIndex, isAscending) {
+    // Encontra a tabela pai
+    const tableBody = document.getElementById(tableBodyId);
+    const table = tableBody.closest('table');
+    const headers = table.querySelectorAll('thead th');
+    
+    headers.forEach((header, index) => {
+        const sortIcon = header.querySelector('.sort-icon');
+        if (!sortIcon) return;
+        
+        if (index === activeColumnIndex) {
+            // Coluna ativa - mostra seta direcionada com cor chamativa
+            if (isAscending) {
+                sortIcon.innerHTML = `<svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd"></path>
+                </svg>`;
+            } else {
+                sortIcon.innerHTML = `<svg class="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                </svg>`;
+            }
+        } else {
+            // Colunas inativas - mostra ícone neutro
+            sortIcon.innerHTML = `<svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M5 12l5-5 5 5H5z"></path>
+                <path d="M5 8l5 5 5-5H5z"></path>
+            </svg>`;
+        }
+    });
+}
 
 // =================================================================================
 // LÓGICA DE UI E RENDERIZAÇÃO
