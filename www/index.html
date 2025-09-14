@@ -569,6 +569,48 @@
         </div>
     </div>
 
+    <!-- Modal de Detalhes do Dashboard -->
+    <div id="dashboardDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="dashboardDetailsTitle" class="text-lg font-medium leading-6 text-gray-900">Detalhes das Transações</h3>
+                <button id="closeDashboardDetails" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboardDetailsTableBody" class="divide-y divide-gray-200">
+                        <!-- Linhas serão inseridas aqui dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-sm text-gray-600">Total Geral</p>
+                        <p id="detailsTotalGeral" class="text-lg font-bold text-gray-800">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Pago</p>
+                        <p id="detailsTotalPago" class="text-lg font-bold text-green-600">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Restante</p>
+                        <p id="detailsTotalRestante" class="text-lg font-bold text-blue-600">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Caixa de Mensagem Global -->
     <div id="messageBox" class="hidden fixed bottom-24 right-5 bg-blue-500 text-white py-2 px-4 rounded-lg shadow-lg z-30">
         <!-- Mensagem será inserida aqui -->

@@ -401,6 +401,9 @@ function renderSummaryByDescription() {
         if (Math.abs(total) < 0.01) return; // Não mostra itens zerados
 
         const row = document.createElement('tr');
+        row.className = 'cursor-pointer hover:bg-gray-50';
+        row.onclick = () => showDashboardDetails(item.descricao);
+        
         row.innerHTML = `
             <td class="py-3 px-4">${item.descricao}</td>
             <td class="py-3 px-4 text-center font-semibold text-gray-600">${item.quantidade}</td>
@@ -461,12 +464,12 @@ function renderForecastsPage() {
     previstas.forEach(item => {
         const isDespesa = item.tipo === 'despesa';
         const rowHtml = `
-            <tr>
+            <tr class="cursor-pointer hover:bg-gray-50" onclick="showEditTransacaoModal('${item.id}')">
                 <td class="py-3 px-4">${formatDateToBrazil(item.dataPrevista)}</td>
                 <td class="py-3 px-4">${item.descricao}</td>
                 <td class="py-3 px-4 ${isDespesa ? 'text-red-600' : 'text-green-600'} font-bold">${formatCurrency(item.valorPrevisto)}</td>
                 <td class="py-3 px-4">
-                    <button onclick="showMarcarTransacaoModal('${item.id}', '${item.tipo}')" class="px-3 py-1 text-sm bg-green-500 text-white rounded-full hover:bg-green-600">
+                    <button onclick="event.stopPropagation(); showMarcarTransacaoModal('${item.id}', '${item.tipo}')" class="px-3 py-1 text-sm bg-green-500 text-white rounded-full hover:bg-green-600">
                         ${isDespesa ? 'Pagar' : 'Receber'}
                     </button>
                 </td>
@@ -505,6 +508,9 @@ function renderAllTransactionsTable(transacoes) {
 
     transacoes.forEach(item => {
         const row = document.createElement('tr');
+        row.className = 'cursor-pointer hover:bg-gray-50';
+        row.onclick = () => showEditTransacaoModal(item.id);
+        
         const valorExibido = item.status === 'realizado' ? item.valor : item.valorPrevisto;
         
         row.innerHTML = `
@@ -513,8 +519,8 @@ function renderAllTransactionsTable(transacoes) {
             <td class="py-3 px-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === 'realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${item.status}</span></td>
             <td class="py-3 px-4 ${valorExibido >= 0 ? 'text-green-600' : 'text-red-600'} font-bold">${formatCurrency(valorExibido)}</td>
             <td class="py-3 px-4 space-x-2 whitespace-nowrap">
-                <button onclick="showEditTransacaoModal('${item.id}')" class="text-blue-500 hover:text-blue-700">Editar</button>
-                <button onclick="deleteTransacao('${item.id}')" class="text-red-500 hover:text-red-700">Excluir</button>
+                <button onclick="event.stopPropagation(); showEditTransacaoModal('${item.id}')" class="text-blue-500 hover:text-blue-700">Editar</button>
+                <button onclick="event.stopPropagation(); deleteTransacao('${item.id}')" class="text-red-500 hover:text-red-700">Excluir</button>
             </td>
         `;
         transacoesTableBody.appendChild(row);
@@ -952,6 +958,109 @@ filtroDescricaoEl.addEventListener('input', renderTables);
 previsaoDataEl.addEventListener('change', () => {
     calculateDashboardMetrics();
     renderSummaryByDescription();
+});
+
+// =================================================================================
+// MODAL DE DETALHES DO DASHBOARD
+// =================================================================================
+
+window.showDashboardDetails = function(descricaoBase) {
+    const dataLimite = previsaoDataEl.value || new Date().toISOString().split('T')[0];
+    
+    // Filtrar transações que correspondem à descrição base
+    const transacoesFiltradas = transacoes.filter(t => {
+        const dataTransacao = t.data || t.dataPrevista;
+        if (dataTransacao > dataLimite) return false;
+        
+        // Normalizar a descrição da transação da mesma forma que foi feito no resumo
+        let baseDesc = t.descricao;
+        baseDesc = baseDesc.replace(/\s*\(\d+\/\d+\)$/, '');
+        baseDesc = baseDesc.replace(/\s*\(Recorrente\s*\d+\s*de\s*\d+\)$/, '');
+        baseDesc = baseDesc.replace(/\s*\(Recorrente\)$/, '');
+        baseDesc = baseDesc.trim();
+        
+        return baseDesc === descricaoBase;
+    });
+    
+    // Ordenar por data
+    transacoesFiltradas.sort((a, b) => {
+        const dataA = new Date(a.data || a.dataPrevista);
+        const dataB = new Date(b.data || b.dataPrevista);
+        return dataA - dataB;
+    });
+    
+    // Atualizar título do modal
+    document.getElementById('dashboardDetailsTitle').textContent = `Detalhes: ${descricaoBase}`;
+    
+    // Renderizar tabela
+    const tableBody = document.getElementById('dashboardDetailsTableBody');
+    tableBody.innerHTML = '';
+    
+    let totalPago = 0;
+    let totalRestante = 0;
+    
+    transacoesFiltradas.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = 'cursor-pointer hover:bg-gray-50';
+        row.onclick = () => {
+            document.getElementById('dashboardDetailsModal').classList.add('hidden');
+            showEditTransacaoModal(item.id);
+        };
+        
+        const valorExibido = item.status === 'realizado' ? item.valor : item.valorPrevisto;
+        const isNegative = valorExibido < 0;
+        
+        if (item.status === 'realizado') {
+            totalPago += item.valor;
+        } else {
+            totalRestante += item.valorPrevisto;
+        }
+        
+        row.innerHTML = `
+            <td class="py-3 px-4">${formatDateToBrazil(item.data || item.dataPrevista)}</td>
+            <td class="py-3 px-4">${item.descricao}</td>
+            <td class="py-3 px-4">
+                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.status === 'realizado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                    ${item.status}
+                </span>
+            </td>
+            <td class="py-3 px-4 ${isNegative ? 'text-red-600' : 'text-green-600'} font-bold">${formatCurrency(valorExibido)}</td>
+            <td class="py-3 px-4 space-x-2 whitespace-nowrap">
+                <button onclick="event.stopPropagation(); showEditTransacaoModal('${item.id}')" class="text-blue-500 hover:text-blue-700">Editar</button>
+                <button onclick="event.stopPropagation(); deleteTransacao('${item.id}')" class="text-red-500 hover:text-red-700">Excluir</button>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Atualizar totais
+    const totalGeral = totalPago + totalRestante;
+    document.getElementById('detailsTotalGeral').textContent = formatCurrency(totalGeral);
+    document.getElementById('detailsTotalPago').textContent = formatCurrency(totalPago);
+    document.getElementById('detailsTotalRestante').textContent = formatCurrency(totalRestante);
+    
+    // Mostrar modal
+    document.getElementById('dashboardDetailsModal').classList.remove('hidden');
+};
+
+// Event listener para fechar o modal
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('dashboardDetailsModal');
+    const closeBtn = document.getElementById('closeDashboardDetails');
+    
+    if (closeBtn) {
+        closeBtn.onclick = () => modal.classList.add('hidden');
+    }
+    
+    // Fechar modal clicando fora dele
+    if (modal) {
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        };
+    }
 });
 
 
