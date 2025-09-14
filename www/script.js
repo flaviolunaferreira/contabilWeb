@@ -304,6 +304,7 @@ function updateUI() {
     renderTables();
     renderSummaryByDescription(); // Novo
     renderForecastsPage(); // Novo
+    renderIntelligencePage(); // Inteligência Financeira
 }
 
 function renderCategorias() {
@@ -1060,6 +1061,378 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.classList.add('hidden');
             }
         };
+    }
+});
+
+// =================================================================================
+// INTELIGÊNCIA FINANCEIRA
+// =================================================================================
+
+class FinancialIntelligence {
+    constructor() {
+        this.periods = {
+            short: 7,    // 7 dias
+            medium: 30,  // 30 dias
+            long: 90     // 90 dias
+        };
+    }
+
+    // Calcular métricas de performance para diferentes períodos
+    calculatePerformanceScores() {
+        const hoje = new Date();
+        const scores = {};
+
+        Object.keys(this.periods).forEach(period => {
+            const days = this.periods[period];
+            const dataLimite = new Date(hoje);
+            dataLimite.setDate(dataLimite.getDate() - days);
+            
+            const transacoesPeriodo = transacoes.filter(t => {
+                const dataTransacao = new Date(t.data || t.dataPrevista);
+                return dataTransacao >= dataLimite && dataTransacao <= hoje;
+            });
+
+            const receitas = transacoesPeriodo
+                .filter(t => t.tipo === 'receita' && t.status === 'realizado')
+                .reduce((sum, t) => sum + t.valor, 0);
+
+            const despesas = transacoesPeriodo
+                .filter(t => t.tipo === 'despesa' && t.status === 'realizado')
+                .reduce((sum, t) => sum + Math.abs(t.valor), 0);
+
+            const saldo = receitas - despesas;
+            const eficiencia = receitas > 0 ? (saldo / receitas) * 100 : 0;
+            
+            // Score de 0 a 100 baseado na eficiência
+            let score = Math.max(0, Math.min(100, eficiencia + 50));
+            
+            scores[period] = {
+                score: Math.round(score),
+                receitas,
+                despesas,
+                saldo,
+                eficiencia
+            };
+        });
+
+        return scores;
+    }
+
+    // Analisar tendências de receitas e despesas
+    analyzeTrends() {
+        const hoje = new Date();
+        const mes30Dias = new Date(hoje);
+        mes30Dias.setDate(mes30Dias.getDate() - 30);
+        const mes60Dias = new Date(hoje);
+        mes60Dias.setDate(mes60Dias.getDate() - 60);
+
+        // Últimos 30 dias
+        const transacoes30 = transacoes.filter(t => {
+            const data = new Date(t.data || t.dataPrevista);
+            return data >= mes30Dias && data <= hoje && t.status === 'realizado';
+        });
+
+        // 30-60 dias atrás
+        const transacoes60 = transacoes.filter(t => {
+            const data = new Date(t.data || t.dataPrevista);
+            return data >= mes60Dias && data < mes30Dias && t.status === 'realizado';
+        });
+
+        const receitas30 = transacoes30.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + t.valor, 0);
+        const receitas60 = transacoes60.filter(t => t.tipo === 'receita').reduce((sum, t) => sum + t.valor, 0);
+        const despesas30 = transacoes30.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + Math.abs(t.valor), 0);
+        const despesas60 = transacoes60.filter(t => t.tipo === 'despesa').reduce((sum, t) => sum + Math.abs(t.valor), 0);
+
+        return {
+            receitas: {
+                atual: receitas30,
+                anterior: receitas60,
+                tendencia: receitas60 > 0 ? ((receitas30 - receitas60) / receitas60) * 100 : 0
+            },
+            despesas: {
+                atual: despesas30,
+                anterior: despesas60,
+                tendencia: despesas60 > 0 ? ((despesas30 - despesas60) / despesas60) * 100 : 0
+            }
+        };
+    }
+
+    // Gerar conselhos personalizados
+    generateAdvice() {
+        const scores = this.calculatePerformanceScores();
+        const trends = this.analyzeTrends();
+        const advice = [];
+
+        // Análise baseada no score geral
+        const avgScore = (scores.short.score + scores.medium.score + scores.long.score) / 3;
+
+        if (avgScore >= 80) {
+            advice.push({
+                type: 'success',
+                icon: '🎉',
+                title: 'Excelente Desempenho!',
+                message: 'Parabéns! Você está mantendo uma excelente saúde financeira. Continue assim!'
+            });
+        } else if (avgScore >= 60) {
+            advice.push({
+                type: 'warning',
+                icon: '👍',
+                title: 'Bom Desempenho',
+                message: 'Você está no caminho certo! Algumas pequenas melhorias podem levar você ao próximo nível.'
+            });
+        } else if (avgScore >= 40) {
+            advice.push({
+                type: 'caution',
+                icon: '⚠️',
+                title: 'Atenção Necessária',
+                message: 'Sua situação financeira precisa de atenção. Vamos trabalhar juntos para melhorar!'
+            });
+        } else {
+            advice.push({
+                type: 'danger',
+                icon: '🚨',
+                title: 'Situação Crítica',
+                message: 'É importante tomar medidas imediatas para equilibrar suas finanças.'
+            });
+        }
+
+        // Conselhos baseados em tendências
+        if (trends.despesas.tendencia > 20) {
+            advice.push({
+                type: 'warning',
+                icon: '📉',
+                title: 'Despesas em Alta',
+                message: `Suas despesas aumentaram ${trends.despesas.tendencia.toFixed(1)}% no último mês. Revise seus gastos.`
+            });
+        }
+
+        if (trends.receitas.tendencia < -10) {
+            advice.push({
+                type: 'info',
+                icon: '💡',
+                title: 'Receitas em Queda',
+                message: `Suas receitas diminuíram ${Math.abs(trends.receitas.tendencia).toFixed(1)}%. Considere novas fontes de renda.`
+            });
+        }
+
+        // Conselhos específicos baseados nos dados
+        const proximasDespesas = transacoes.filter(t => {
+            const hoje = new Date();
+            const proximos7Dias = new Date(hoje);
+            proximos7Dias.setDate(proximos7Dias.getDate() + 7);
+            const data = new Date(t.dataPrevista);
+            return t.status === 'previsto' && t.tipo === 'despesa' && data <= proximos7Dias;
+        });
+
+        if (proximasDespesas.length > 0) {
+            const totalProximas = proximasDespesas.reduce((sum, t) => sum + Math.abs(t.valorPrevisto), 0);
+            advice.push({
+                type: 'info',
+                icon: '📅',
+                title: 'Despesas Próximas',
+                message: `Você tem ${formatCurrency(totalProximas)} em despesas previstas para os próximos 7 dias.`
+            });
+        }
+
+        return advice;
+    }
+
+    // Gerar alertas importantes
+    generateAlerts() {
+        const alerts = [];
+        const hoje = new Date();
+
+        // Verificar transações vencidas
+        const vencidas = transacoes.filter(t => {
+            const data = new Date(t.dataPrevista);
+            return t.status === 'previsto' && data < hoje;
+        });
+
+        if (vencidas.length > 0) {
+            alerts.push({
+                type: 'danger',
+                message: `${vencidas.length} transação(ões) vencida(s) precisam de atenção.`
+            });
+        }
+
+        // Verificar saldo baixo
+        const saldoAtual = transacoes
+            .filter(t => t.status === 'realizado')
+            .reduce((sum, t) => sum + t.valor, 0);
+
+        if (saldoAtual < 0) {
+            alerts.push({
+                type: 'danger',
+                message: 'Saldo negativo detectado. Revise suas finanças urgentemente.'
+            });
+        }
+
+        return alerts;
+    }
+
+    // Sugerir metas
+    generateGoals() {
+        const trends = this.analyzeTrends();
+        const goals = [];
+
+        // Meta de redução de despesas
+        if (trends.despesas.tendencia > 0) {
+            goals.push({
+                icon: '🎯',
+                title: 'Reduzir Despesas',
+                description: `Meta: Reduzir gastos em ${Math.min(trends.despesas.tendencia, 20).toFixed(0)}% no próximo mês`,
+                progress: 0
+            });
+        }
+
+        // Meta de aumento de receitas
+        if (trends.receitas.tendencia < 0) {
+            goals.push({
+                icon: '💰',
+                title: 'Aumentar Receitas',
+                description: 'Meta: Buscar novas fontes de renda ou aumentar receitas existentes',
+                progress: 0
+            });
+        }
+
+        // Meta de consistência
+        goals.push({
+            icon: '📊',
+            title: 'Manter Consistência',
+            description: 'Meta: Registrar todas as transações por 30 dias consecutivos',
+            progress: 75
+        });
+
+        return goals;
+    }
+}
+
+// Instância da inteligência financeira
+const financialAI = new FinancialIntelligence();
+
+// Função para renderizar a página de inteligência
+function renderIntelligencePage() {
+    const scores = financialAI.calculatePerformanceScores();
+    const trends = financialAI.analyzeTrends();
+    const advice = financialAI.generateAdvice();
+    const alerts = financialAI.generateAlerts();
+    const goals = financialAI.generateGoals();
+
+    // Atualizar scores
+    document.getElementById('score-curto').textContent = scores.short.score;
+    document.getElementById('score-medio').textContent = scores.medium.score;
+    document.getElementById('score-longo').textContent = scores.long.score;
+
+    // Atualizar status geral
+    const avgScore = (scores.short.score + scores.medium.score + scores.long.score) / 3;
+    const statusElement = document.getElementById('financial-status');
+    const statusTitle = document.getElementById('status-title');
+    const statusDescription = document.getElementById('status-description');
+
+    if (avgScore >= 80) {
+        statusElement.className = 'text-center p-4 rounded-xl mb-4 bg-green-100 border-green-300 border';
+        statusTitle.textContent = '🌟 Situação Excelente!';
+        statusDescription.textContent = 'Suas finanças estão em ótimo estado. Continue mantendo esse desempenho!';
+    } else if (avgScore >= 60) {
+        statusElement.className = 'text-center p-4 rounded-xl mb-4 bg-blue-100 border-blue-300 border';
+        statusTitle.textContent = '👍 Situação Boa';
+        statusDescription.textContent = 'Você está no caminho certo, mas há espaço para melhorias.';
+    } else if (avgScore >= 40) {
+        statusElement.className = 'text-center p-4 rounded-xl mb-4 bg-yellow-100 border-yellow-300 border';
+        statusTitle.textContent = '⚠️ Atenção Necessária';
+        statusDescription.textContent = 'Suas finanças precisam de mais cuidado e planejamento.';
+    } else {
+        statusElement.className = 'text-center p-4 rounded-xl mb-4 bg-red-100 border-red-300 border';
+        statusTitle.textContent = '🚨 Situação Crítica';
+        statusDescription.textContent = 'É urgente reorganizar suas finanças. Vamos ajudar você!';
+    }
+
+    // Atualizar tendências
+    const trendReceitas = document.getElementById('trend-receitas');
+    const trendDespesas = document.getElementById('trend-despesas');
+
+    trendReceitas.innerHTML = `
+        <div>Valor atual: ${formatCurrency(trends.receitas.atual)}</div>
+        <div class="${trends.receitas.tendencia >= 0 ? 'text-green-600' : 'text-red-600'}">
+            Tendência: ${trends.receitas.tendencia >= 0 ? '↗️' : '↘️'} ${Math.abs(trends.receitas.tendencia).toFixed(1)}%
+        </div>
+    `;
+
+    trendDespesas.innerHTML = `
+        <div>Valor atual: ${formatCurrency(trends.despesas.atual)}</div>
+        <div class="${trends.despesas.tendencia <= 0 ? 'text-green-600' : 'text-red-600'}">
+            Tendência: ${trends.despesas.tendencia <= 0 ? '↘️' : '↗️'} ${Math.abs(trends.despesas.tendencia).toFixed(1)}%
+        </div>
+    `;
+
+    // Renderizar conselhos
+    const adviceContainer = document.getElementById('advice-container');
+    adviceContainer.innerHTML = '';
+    advice.forEach(item => {
+        const adviceDiv = document.createElement('div');
+        adviceDiv.className = `p-4 rounded-lg border-l-4 ${
+            item.type === 'success' ? 'bg-green-50 border-green-400' :
+            item.type === 'warning' ? 'bg-yellow-50 border-yellow-400' :
+            item.type === 'caution' ? 'bg-orange-50 border-orange-400' :
+            item.type === 'danger' ? 'bg-red-50 border-red-400' :
+            'bg-blue-50 border-blue-400'
+        }`;
+        adviceDiv.innerHTML = `
+            <div class="flex items-start">
+                <span class="text-2xl mr-3">${item.icon}</span>
+                <div>
+                    <h4 class="font-semibold text-gray-700">${item.title}</h4>
+                    <p class="text-gray-600 text-sm">${item.message}</p>
+                </div>
+            </div>
+        `;
+        adviceContainer.appendChild(adviceDiv);
+    });
+
+    // Renderizar alertas
+    const alertsContainer = document.getElementById('alerts-container');
+    alertsContainer.innerHTML = '';
+    if (alerts.length === 0) {
+        alertsContainer.innerHTML = '<div class="text-green-600 text-sm">✅ Nenhum alerta no momento!</div>';
+    } else {
+        alerts.forEach(alert => {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `p-3 rounded-lg ${
+                alert.type === 'danger' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+            }`;
+            alertDiv.textContent = alert.message;
+            alertsContainer.appendChild(alertDiv);
+        });
+    }
+
+    // Renderizar metas
+    const goalsContainer = document.getElementById('goals-container');
+    goalsContainer.innerHTML = '';
+    goals.forEach(goal => {
+        const goalDiv = document.createElement('div');
+        goalDiv.className = 'p-4 bg-gray-50 rounded-lg';
+        goalDiv.innerHTML = `
+            <div class="flex items-start">
+                <span class="text-2xl mr-3">${goal.icon}</span>
+                <div class="flex-1">
+                    <h4 class="font-semibold text-gray-700">${goal.title}</h4>
+                    <p class="text-gray-600 text-sm mb-2">${goal.description}</p>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: ${goal.progress}%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">${goal.progress}% concluído</div>
+                </div>
+            </div>
+        `;
+        goalsContainer.appendChild(goalDiv);
+    });
+}
+
+// Event listener para o botão de atualizar análise
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshButton = document.getElementById('refresh-analysis');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', renderIntelligencePage);
     }
 });
 

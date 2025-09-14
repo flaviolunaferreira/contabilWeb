@@ -444,6 +444,87 @@
         </section>
 
         <!-- Tela de Ajustes -->
+        <!-- Tela de Inteligência Financeira -->
+        <section id="page-intelligence" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Inteligência Financeira</h2>
+                
+                <!-- Status Geral do Usuário -->
+                <div class="mb-6">
+                    <div id="financial-status" class="text-center p-4 rounded-xl mb-4">
+                        <h3 id="status-title" class="text-xl font-bold mb-2">Analisando...</h3>
+                        <p id="status-description" class="text-gray-600">Processando seus dados financeiros...</p>
+                    </div>
+                </div>
+
+                <!-- Métricas de Performance -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-blue-700" id="score-curto">-</div>
+                        <div class="text-sm text-gray-600">Score Curto Prazo</div>
+                        <div class="text-xs text-gray-500">(7 dias)</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-green-700" id="score-medio">-</div>
+                        <div class="text-sm text-gray-600">Score Médio Prazo</div>
+                        <div class="text-xs text-gray-500">(30 dias)</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-purple-700" id="score-longo">-</div>
+                        <div class="text-sm text-gray-600">Score Longo Prazo</div>
+                        <div class="text-xs text-gray-500">(90 dias)</div>
+                    </div>
+                </div>
+
+                <!-- Tendências e Padrões -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Análise de Tendências</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">📈 Receitas</h4>
+                            <div id="trend-receitas" class="text-sm text-gray-600">Calculando...</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">📉 Despesas</h4>
+                            <div id="trend-despesas" class="text-sm text-gray-600">Calculando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conselhos Personalizados -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Conselhos Personalizados</h3>
+                    <div id="advice-container" class="space-y-3">
+                        <!-- Conselhos serão inseridos aqui -->
+                    </div>
+                </div>
+
+                <!-- Alertas e Avisos -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Alertas Importantes</h3>
+                    <div id="alerts-container" class="space-y-2">
+                        <!-- Alertas serão inseridos aqui -->
+                    </div>
+                </div>
+
+                <!-- Metas e Objetivos -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Metas Sugeridas</h3>
+                    <div id="goals-container" class="space-y-3">
+                        <!-- Metas serão inseridas aqui -->
+                    </div>
+                </div>
+
+                <!-- Botão de Atualizar Análise -->
+                <div class="text-center">
+                    <button id="refresh-analysis" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        🔄 Atualizar Análise
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Ajustes -->
         <section id="page-settings" class="page hidden">
             <div class="bg-white rounded-xl shadow-lg p-6 w-full">
                 <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Ajustes</h2>
@@ -485,24 +566,28 @@
 
     <!-- Menu de Navegação Fixo -->
     <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg flex justify-around z-10">
-        <button data-page="page-home" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-blue-600">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        <button data-page="page-home" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-blue-600">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
             <span class="text-xs">Início</span>
         </button>
-        <button data-page="page-add" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <button data-page="page-add" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span class="text-xs">Adicionar</span>
         </button>
-        <button data-page="page-forecasts" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+        <button data-page="page-forecasts" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
             <span class="text-xs">Previsões</span>
         </button>
-        <button data-page="page-reports" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+        <button data-page="page-intelligence" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+            <span class="text-xs">IA</span>
+        </button>
+        <button data-page="page-reports" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             <span class="text-xs">Relatórios</span>
         </button>
-        <button data-page="page-settings" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        <button data-page="page-settings" class="nav-button flex-1 flex flex-col items-center justify-center p-1.5 text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
             <span class="text-xs">Ajustes</span>
         </button>
     </nav>
