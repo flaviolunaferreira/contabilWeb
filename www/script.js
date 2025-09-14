@@ -454,15 +454,98 @@ function renderSummary(filteredTransacoes) {
 }
 
 // ATUALIZADO: Agora renderiza na página de Previsões
-function renderForecastsPage() {
-    const hoje = new Date().toISOString().split('T')[0];
-    const previstas = transacoes.filter(t => t.status === 'previsto' && t.dataPrevista >= hoje);
-    previstas.sort((a, b) => new Date(a.dataPrevista) - new Date(b.dataPrevista));
+// =================================================================================
+// FILTROS DA PÁGINA DE PREVISÕES
+// =================================================================================
 
+function applyForecastFilters() {
+    const periodFilter = document.getElementById('forecastPeriodFilter').value;
+    const typeFilter = document.getElementById('forecastTypeFilter').value;
+    const categoryFilter = document.getElementById('forecastCategoryFilter').value;
+    const descriptionFilter = document.getElementById('forecastDescriptionFilter').value.toLowerCase();
+    const minValue = parseFloat(document.getElementById('forecastMinValue').value) || 0;
+    const maxValue = parseFloat(document.getElementById('forecastMaxValue').value) || Infinity;
+    const sortBy = document.getElementById('forecastSortBy').value;
+    
+    const hoje = new Date();
+    let dataLimite = new Date(hoje);
+    
+    // Aplicar filtro de período
+    if (periodFilter === 'custom') {
+        const startDate = document.getElementById('forecastStartDate').value;
+        const endDate = document.getElementById('forecastEndDate').value;
+        if (startDate && endDate) {
+            dataLimite = new Date(endDate);
+        }
+    } else if (periodFilter !== 'all') {
+        dataLimite.setDate(dataLimite.getDate() + parseInt(periodFilter));
+    } else {
+        dataLimite.setFullYear(dataLimite.getFullYear() + 10); // Mostrar tudo
+    }
+
+    // Filtrar transações
+    let filteredTransactions = transacoes.filter(t => {
+        if (t.status !== 'previsto') return false;
+        
+        const dataTransacao = new Date(t.dataPrevista);
+        
+        // Filtro de período
+        if (periodFilter === 'custom') {
+            const startDate = document.getElementById('forecastStartDate').value;
+            const endDate = document.getElementById('forecastEndDate').value;
+            if (startDate && endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                if (dataTransacao < start || dataTransacao > end) return false;
+            }
+        } else {
+            if (dataTransacao < hoje || dataTransacao > dataLimite) return false;
+        }
+        
+        // Filtro de tipo
+        if (typeFilter !== 'all' && t.tipo !== typeFilter) return false;
+        
+        // Filtro de categoria
+        if (categoryFilter !== 'all' && t.categoria !== categoryFilter) return false;
+        
+        // Filtro de descrição
+        if (descriptionFilter && !t.descricao.toLowerCase().includes(descriptionFilter)) return false;
+        
+        // Filtro de valor
+        const valor = Math.abs(t.valorPrevisto);
+        if (valor < minValue || valor > maxValue) return false;
+        
+        return true;
+    });
+
+    // Aplicar ordenação
+    filteredTransactions.sort((a, b) => {
+        switch (sortBy) {
+            case 'date':
+                return new Date(a.dataPrevista) - new Date(b.dataPrevista);
+            case 'date-desc':
+                return new Date(b.dataPrevista) - new Date(a.dataPrevista);
+            case 'value-asc':
+                return Math.abs(a.valorPrevisto) - Math.abs(b.valorPrevisto);
+            case 'value-desc':
+                return Math.abs(b.valorPrevisto) - Math.abs(a.valorPrevisto);
+            case 'description':
+                return a.descricao.localeCompare(b.descricao);
+            default:
+                return new Date(a.dataPrevista) - new Date(b.dataPrevista);
+        }
+    });
+
+    return filteredTransactions;
+}
+
+function renderFilteredForecastsPage() {
+    const filteredTransactions = applyForecastFilters();
+    
     let despesasHtml = '';
     let receitasHtml = '';
 
-    previstas.forEach(item => {
+    filteredTransactions.forEach(item => {
         const isDespesa = item.tipo === 'despesa';
         const rowHtml = `
             <tr class="cursor-pointer hover:bg-gray-50" onclick="showEditTransacaoModal('${item.id}')">
@@ -483,23 +566,83 @@ function renderForecastsPage() {
         }
     });
 
-    despesasVencerTableBody.innerHTML = despesasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma despesa prevista.</td></tr>';
-    receitasReceberTableBody.innerHTML = receitasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma receita prevista.</td></tr>';
+    despesasVencerTableBody.innerHTML = despesasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma despesa encontrada com os filtros aplicados.</td></tr>';
+    receitasReceberTableBody.innerHTML = receitasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma receita encontrada com os filtros aplicados.</td></tr>';
 
-    // Calcula e exibe os totais de pago/recebido
+    // Calcula e exibe os totais baseados nos filtros
+    const totalFiltradoDespesas = filteredTransactions
+        .filter(t => t.tipo === 'despesa')
+        .reduce((sum, t) => sum + Math.abs(t.valorPrevisto), 0);
+    
+    const totalFiltradoReceitas = filteredTransactions
+        .filter(t => t.tipo === 'receita')
+        .reduce((sum, t) => sum + t.valorPrevisto, 0);
+
+    const balancoFuturoFiltrado = totalFiltradoReceitas - totalFiltradoDespesas;
+
+    // Totais gerais (não filtrados)
     const totalPago = transacoes
         .filter(t => t.status === 'realizado' && t.tipo === 'despesa')
-        .reduce((sum, t) => sum + t.valor, 0);
+        .reduce((sum, t) => sum + Math.abs(t.valor), 0);
     
     const totalRecebido = transacoes
         .filter(t => t.status === 'realizado' && t.tipo === 'receita')
         .reduce((sum, t) => sum + t.valor, 0);
 
-    const balancoFuturo = previstas.reduce((sum, t) => sum + t.valorPrevisto, 0);
-
     totalPagoEl.textContent = formatCurrency(totalPago);
     totalRecebidoEl.textContent = formatCurrency(totalRecebido);
-    balancoFuturoEl.textContent = formatCurrency(balancoFuturo);
+    balancoFuturoEl.textContent = formatCurrency(balancoFuturoFiltrado);
+}
+
+function populateForecastCategoryFilter() {
+    const categorySelect = document.getElementById('forecastCategoryFilter');
+    categorySelect.innerHTML = '<option value="all">Todas as Categorias</option>';
+    
+    Array.from(categoriasSalvas).sort().forEach(categoria => {
+        const option = document.createElement('option');
+        option.value = categoria;
+        option.textContent = categoria;
+        categorySelect.appendChild(option);
+    });
+}
+
+function clearForecastFilters() {
+    document.getElementById('forecastPeriodFilter').value = '7';
+    document.getElementById('forecastTypeFilter').value = 'all';
+    document.getElementById('forecastCategoryFilter').value = 'all';
+    document.getElementById('forecastDescriptionFilter').value = '';
+    document.getElementById('forecastMinValue').value = '';
+    document.getElementById('forecastMaxValue').value = '';
+    document.getElementById('forecastSortBy').value = 'date';
+    document.getElementById('forecastStartDate').value = '';
+    document.getElementById('forecastEndDate').value = '';
+    
+    // Ocultar filtros personalizados
+    document.getElementById('customDateFilters').classList.add('hidden');
+    
+    // Aplicar filtros limpos
+    renderFilteredForecastsPage();
+}
+
+function toggleForecastFilters() {
+    const filtersSection = document.querySelector('#page-forecasts .bg-gray-50');
+    const toggleButton = document.getElementById('toggleFilters');
+    
+    if (filtersSection.classList.contains('hidden')) {
+        filtersSection.classList.remove('hidden');
+        toggleButton.textContent = '📋 Ocultar Filtros';
+    } else {
+        filtersSection.classList.add('hidden');
+        toggleButton.textContent = '📋 Mostrar Filtros';
+    }
+}
+
+function renderForecastsPage() {
+    // Atualizar categorias no filtro
+    populateForecastCategoryFilter();
+    
+    // Renderizar com filtros aplicados
+    renderFilteredForecastsPage();
 }
 
 
@@ -1433,6 +1576,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshButton = document.getElementById('refresh-analysis');
     if (refreshButton) {
         refreshButton.addEventListener('click', renderIntelligencePage);
+    }
+});
+
+// =================================================================================
+// EVENT LISTENERS DOS FILTROS DE PREVISÕES
+// =================================================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Event listeners para os filtros da página de previsões
+    const applyFiltersBtn = document.getElementById('applyForecastFilters');
+    const clearFiltersBtn = document.getElementById('clearForecastFilters');
+    const toggleFiltersBtn = document.getElementById('toggleFilters');
+    const periodFilter = document.getElementById('forecastPeriodFilter');
+    
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', renderFilteredForecastsPage);
+    }
+    
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearForecastFilters);
+    }
+    
+    if (toggleFiltersBtn) {
+        toggleFiltersBtn.addEventListener('click', toggleForecastFilters);
+    }
+    
+    // Mostrar/ocultar campos de data personalizada
+    if (periodFilter) {
+        periodFilter.addEventListener('change', (e) => {
+            const customDateFilters = document.getElementById('customDateFilters');
+            if (e.target.value === 'custom') {
+                customDateFilters.classList.remove('hidden');
+            } else {
+                customDateFilters.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Event listeners para aplicar filtros em tempo real
+    const filters = [
+        'forecastTypeFilter',
+        'forecastCategoryFilter', 
+        'forecastDescriptionFilter',
+        'forecastMinValue',
+        'forecastMaxValue',
+        'forecastSortBy',
+        'forecastStartDate',
+        'forecastEndDate'
+    ];
+    
+    filters.forEach(filterId => {
+        const element = document.getElementById(filterId);
+        if (element) {
+            if (element.type === 'text' || element.type === 'number') {
+                element.addEventListener('input', () => {
+                    // Debounce para evitar muitas chamadas
+                    clearTimeout(element.filterTimeout);
+                    element.filterTimeout = setTimeout(renderFilteredForecastsPage, 300);
+                });
+            } else {
+                element.addEventListener('change', renderFilteredForecastsPage);
+            }
+        }
+    });
+    
+    // Aplicar filtro de período automaticamente
+    if (periodFilter) {
+        periodFilter.addEventListener('change', renderFilteredForecastsPage);
     }
 });
 
