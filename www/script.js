@@ -13,6 +13,7 @@ const recorrenteFields = document.getElementById('recorrenteFields');
 const tipoSelect = document.getElementById('tipo');
 const marcarPagoForm = document.getElementById('marcarPagoForm');
 const transacoesTableBody = document.getElementById('transacoesTableBody');
+const summaryByDescriptionBody = document.getElementById('summaryByDescriptionBody'); // Novo
 const despesasVencerTableBody = document.getElementById('despesasVencerTableBody');
 const receitasReceberTableBody = document.getElementById('receitasReceberTableBody');
 const saldoRealizadoEl = document.getElementById('saldoRealizado');
@@ -44,6 +45,15 @@ const editTransacaoModal = document.getElementById('editTransacaoModal');
 const editTransacaoForm = document.getElementById('editTransacaoForm');
 const cancelEditTransacao = document.getElementById('cancelEditTransacao');
 const categoryManagerContainer = document.getElementById('category-manager-container');
+
+// --- Novos Elementos da Tela de Previsões ---
+const totalRecebidoEl = document.getElementById('totalRecebido');
+const totalPagoEl = document.getElementById('totalPago');
+const balancoFuturoEl = document.getElementById('balancoFuturo');
+
+// --- Novos Elementos do Dashboard ---
+const totalAReceberEl = document.getElementById('totalAReceber');
+const totalPagoRealizadoEl = document.getElementById('totalPagoRealizado');
 
 
 // --- Estado do Aplicativo ---
@@ -203,6 +213,54 @@ function getFilterDates() {
 }
 
 // =================================================================================
+// FUNÇÃO DE ORDENAÇÃO DE TABELAS
+// =================================================================================
+
+let sortDirections = {}; // Armazena a direção da ordenação para cada tabela
+
+window.sortTable = function(tableBodyId, columnIndex) {
+    const tableBody = document.getElementById(tableBodyId);
+    const rows = Array.from(tableBody.querySelectorAll('tr'));
+    
+    // Determina a direção da ordenação
+    const sortKey = `${tableBodyId}-${columnIndex}`;
+    const isAscending = !sortDirections[sortKey];
+    sortDirections[sortKey] = isAscending;
+
+    rows.sort((a, b) => {
+        const cellA = a.cells[columnIndex].textContent.trim();
+        const cellB = b.cells[columnIndex].textContent.trim();
+        
+        // Verifica se é uma coluna de valor monetário
+        if (cellA.includes('R$') && cellB.includes('R$')) {
+            const valueA = parseFloat(cellA.replace(/[R$\s.,]/g, '').replace(',', '.')) || 0;
+            const valueB = parseFloat(cellB.replace(/[R$\s.,]/g, '').replace(',', '.')) || 0;
+            return isAscending ? valueA - valueB : valueB - valueA;
+        }
+        
+        // Verifica se é uma coluna de data (formato dd/mm/yyyy)
+        if (cellA.includes('/') && cellB.includes('/')) {
+            const dateA = cellA.split('/').reverse().join('-');
+            const dateB = cellB.split('/').reverse().join('-');
+            return isAscending ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+        }
+        
+        // Verifica se é uma coluna numérica
+        const numA = parseFloat(cellA);
+        const numB = parseFloat(cellB);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return isAscending ? numA - numB : numB - numA;
+        }
+        
+        // Ordenação alfabética padrão
+        return isAscending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+    });
+
+    // Reinsere as linhas ordenadas
+    rows.forEach(row => tableBody.appendChild(row));
+};
+
+// =================================================================================
 // LÓGICA DE UI E RENDERIZAÇÃO
 // =================================================================================
 
@@ -210,6 +268,8 @@ function updateUI() {
     renderCategorias();
     calculateDashboardMetrics();
     renderTables();
+    renderSummaryByDescription(); // Novo
+    renderForecastsPage(); // Novo
 }
 
 function renderCategorias() {
@@ -230,19 +290,26 @@ function calculateDashboardMetrics() {
     const dataPrevisao = previsaoDataEl.value || hoje;
 
     let saldoRealizado = 0;
+    let totalPagoRealizado = 0;
     transacoes.forEach(t => {
         if (t.status === 'realizado' && t.data <= hoje) {
             saldoRealizado += t.valor;
+            if (t.tipo === 'despesa') {
+                totalPagoRealizado += Math.abs(t.valor);
+            }
         }
     });
 
     let saldoFuturo = saldoRealizado;
     let totalDespesasPrevistas = 0;
+    let totalAReceber = 0;
     transacoes.forEach(t => {
         if (t.status === 'previsto' && t.dataPrevista <= dataPrevisao) {
             saldoFuturo += t.valorPrevisto;
             if (t.tipo === 'despesa') {
                 totalDespesasPrevistas += Math.abs(t.valorPrevisto);
+            } else if (t.tipo === 'receita') {
+                totalAReceber += t.valorPrevisto;
             }
         }
     });
@@ -250,7 +317,67 @@ function calculateDashboardMetrics() {
     saldoRealizadoEl.textContent = formatCurrency(saldoRealizado);
     saldoFuturoEl.textContent = formatCurrency(saldoFuturo);
     totalDespesasPrevistasEl.textContent = formatCurrency(totalDespesasPrevistas);
+    totalAReceberEl.textContent = formatCurrency(totalAReceber);
+    totalPagoRealizadoEl.textContent = formatCurrency(totalPagoRealizado);
 }
+
+// ATUALIZADO: Renderiza o resumo por descrição no Dashboard baseado no campo "Prever Saldo para o dia"
+function renderSummaryByDescription() {
+    const summary = {};
+    const dataLimite = previsaoDataEl.value || new Date().toISOString().split('T')[0];
+
+    const transacoesFiltradas = transacoes.filter(t => {
+        const dataTransacao = t.data || t.dataPrevista;
+        return dataTransacao <= dataLimite;
+    });
+
+    transacoesFiltradas.forEach(t => {
+        // Melhor normalização da descrição para agrupar corretamente
+        let baseDesc = t.descricao;
+        // Remove "(X/Y)" - parcelas
+        baseDesc = baseDesc.replace(/\s*\(\d+\/\d+\)$/, '');
+        // Remove "(Recorrente X de Y)" 
+        baseDesc = baseDesc.replace(/\s*\(Recorrente\s*\d+\s*de\s*\d+\)$/, '');
+        // Remove "(Recorrente)" simples
+        baseDesc = baseDesc.replace(/\s*\(Recorrente\)$/, '');
+        // Remove espaços extras
+        baseDesc = baseDesc.trim();
+
+        if (!summary[baseDesc]) {
+            summary[baseDesc] = {
+                descricao: baseDesc,
+                pago: 0,
+                restante: 0,
+                quantidade: 0
+            };
+        }
+        
+        summary[baseDesc].quantidade += 1; // Conta cada transação
+        
+        if (t.status === 'realizado') {
+            summary[baseDesc].pago += t.valor;
+        } else { // previsto
+            summary[baseDesc].restante += t.valorPrevisto;
+        }
+    });
+
+    summaryByDescriptionBody.innerHTML = '';
+    Object.values(summary).forEach(item => {
+        const total = item.pago + item.restante;
+        if (Math.abs(total) < 0.01) return; // Não mostra itens zerados
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-3 px-4">${item.descricao}</td>
+            <td class="py-3 px-4 text-center font-semibold text-gray-600">${item.quantidade}</td>
+            <td class="py-3 px-4 font-bold text-gray-800">${formatCurrency(total)}</td>
+            <td class="py-3 px-4 font-bold ${item.pago >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(item.pago)}</td>
+            <td class="py-3 px-4 font-bold ${item.restante !== 0 ? (item.restante > 0 ? 'text-blue-600' : 'text-orange-600') : 'text-gray-500'}">${formatCurrency(item.restante)}</td>
+        `;
+        summaryByDescriptionBody.appendChild(row);
+    });
+}
+
 
 function renderTables() {
     const { dataInicioFiltro, dataFimFiltro } = getFilterDates();
@@ -271,7 +398,6 @@ function renderTables() {
     });
 
     renderSummary(filteredTransacoes);
-    renderUpcomingTables(filteredTransacoes);
     renderAllTransactionsTable(filteredTransacoes);
 }
 
@@ -289,12 +415,9 @@ function renderSummary(filteredTransacoes) {
     saldoPeriodoEl.textContent = formatCurrency(totalReceitas + totalDespesas);
 }
 
-function renderUpcomingTables(transacoes) {
-    despesasVencerTableBody.innerHTML = '';
-    receitasReceberTableBody.innerHTML = '';
-
+// ATUALIZADO: Agora renderiza na página de Previsões
+function renderForecastsPage() {
     const hoje = new Date().toISOString().split('T')[0];
-    // Filtrar apenas transações futuras
     const previstas = transacoes.filter(t => t.status === 'previsto' && t.dataPrevista >= hoje);
     previstas.sort((a, b) => new Date(a.dataPrevista) - new Date(b.dataPrevista));
 
@@ -324,7 +447,23 @@ function renderUpcomingTables(transacoes) {
 
     despesasVencerTableBody.innerHTML = despesasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma despesa prevista.</td></tr>';
     receitasReceberTableBody.innerHTML = receitasHtml || '<tr><td colspan="4" class="py-3 px-4 text-center text-gray-500">Nenhuma receita prevista.</td></tr>';
+
+    // Calcula e exibe os totais de pago/recebido
+    const totalPago = transacoes
+        .filter(t => t.status === 'realizado' && t.tipo === 'despesa')
+        .reduce((sum, t) => sum + t.valor, 0);
+    
+    const totalRecebido = transacoes
+        .filter(t => t.status === 'realizado' && t.tipo === 'receita')
+        .reduce((sum, t) => sum + t.valor, 0);
+
+    const balancoFuturo = previstas.reduce((sum, t) => sum + t.valorPrevisto, 0);
+
+    totalPagoEl.textContent = formatCurrency(totalPago);
+    totalRecebidoEl.textContent = formatCurrency(totalRecebido);
+    balancoFuturoEl.textContent = formatCurrency(balancoFuturo);
 }
+
 
 function renderAllTransactionsTable(transacoes) {
     transacoesTableBody.innerHTML = '';
@@ -770,8 +909,17 @@ isParceladaCheckbox.addEventListener('change', () => parcelamentoFields.classLis
 isRecorrenteCheckbox.addEventListener('change', () => recorrenteFields.classList.toggle('hidden', !isRecorrenteCheckbox.checked));
 document.getElementById('cancelMarcarPago').addEventListener('click', () => marcarPagoModal.classList.add('hidden'));
 cancelEditTransacao.addEventListener('click', () => editTransacaoModal.classList.add('hidden')); // Novo
-[filtroPeriodoEl, filtroCategoriaEl, dataInicioEl, dataFimEl, previsaoDataEl].forEach(el => el.addEventListener('change', updateUI));
-filtroDescricaoEl.addEventListener('input', updateUI); // Novo
+
+// Listeners para filtros de Relatórios
+[filtroPeriodoEl, filtroCategoriaEl, dataInicioEl, dataFimEl].forEach(el => el.addEventListener('change', renderTables));
+filtroDescricaoEl.addEventListener('input', renderTables);
+
+// Listener para o campo de previsão de saldo (atualiza dashboard)
+previsaoDataEl.addEventListener('change', () => {
+    calculateDashboardMetrics();
+    renderSummaryByDescription();
+});
+
 
 // =================================================================================
 // INICIALIZAÇÃO DA APLICAÇÃO
@@ -787,7 +935,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isMobile = false;
         loadDataFromLocalStorage();
         updateUI();
+    } else {
+        // Para mobile, a UI é atualizada no onDeviceReady
     }
     updateVisibilityBasedOnType();
-    // A chamada inicial para updateUI() será feita após a conexão com o banco de dados
+    // A chamada inicial para updateUI() será feita após a conexão com o banco de dados ou carregamento do localStorage
 });

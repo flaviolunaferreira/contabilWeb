@@ -35,7 +35,7 @@
 
             <!-- Main Dashboard Section -->
             <div class="bg-white rounded-xl shadow-lg p-6 mb-6 w-full">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 text-center">
                     <div class="bg-blue-500 text-white p-4 rounded-xl shadow-md">
                         <p class="text-sm">Saldo Realizado (Hoje)</p>
                         <p id="saldoRealizado" class="text-2xl font-bold mt-1">R$ 0,00</p>
@@ -48,6 +48,14 @@
                         <p class="text-sm">Total de Despesas Previstas</p>
                         <p id="totalDespesasPrevistas" class="text-2xl font-bold mt-1">R$ 0,00</p>
                     </div>
+                    <div class="bg-emerald-500 text-white p-4 rounded-xl shadow-md">
+                        <p class="text-sm">Total a Receber</p>
+                        <p id="totalAReceber" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-purple-500 text-white p-4 rounded-xl shadow-md">
+                        <p class="text-sm">Total Pago</p>
+                        <p id="totalPagoRealizado" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                    </div>
                 </div>
                 <div class="mt-4 flex flex-col items-center">
                     <div class="w-full sm:max-w-xs">
@@ -57,41 +65,32 @@
                 </div>
             </div>
 
-            <!-- Tabela de Despesas a Vencer -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 w-full">
-                <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Despesas</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="despesasVencerTableBody" class="divide-y divide-gray-200">
-                            <!-- Linhas de despesas serão inseridas aqui -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Tabela de Receitas a Receber -->
+            <!-- Tabela de Resumo por Descrição -->
             <div class="bg-white rounded-xl shadow-lg p-6 w-full">
-                <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Receitas</h3>
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Resumo por Descrição</h3>
                 <div class="overflow-x-auto">
                     <table class="min-w-full bg-white">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
-                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 0)">
+                                    Descrição <span class="ml-1">↕️</span>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 1)">
+                                    Qtd <span class="ml-1">↕️</span>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 2)">
+                                    Total <span class="ml-1">↕️</span>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 3)">
+                                    Pago/Recebido <span class="ml-1">↕️</span>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 4)">
+                                    Restante <span class="ml-1">↕️</span>
+                                </th>
                             </tr>
                         </thead>
-                        <tbody id="receitasReceberTableBody" class="divide-y divide-gray-200">
-                            <!-- Linhas de receitas serão inseridas aqui -->
+                        <tbody id="summaryByDescriptionBody" class="divide-y divide-gray-200">
+                            <!-- Linhas de resumo serão inseridas aqui -->
                         </tbody>
                     </table>
                 </div>
@@ -163,6 +162,81 @@
             </div>
         </section>
 
+        <!-- Nova Tela de Previsões -->
+        <section id="page-forecasts" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Previsões</h2>
+
+                <!-- Resumo de Pagamentos -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-8">
+                    <div class="bg-green-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Recebido</p>
+                        <p id="totalRecebido" class="text-xl font-bold text-green-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-red-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Pago</p>
+                        <p id="totalPago" class="text-xl font-bold text-red-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Balanço Futuro</p>
+                        <p id="balancoFuturo" class="text-xl font-bold text-blue-700 mt-1">R$ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Tabela de Despesas a Vencer -->
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Despesas</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 0)">
+                                        Data <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 1)">
+                                        Descrição <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 2)">
+                                        Valor <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="despesasVencerTableBody" class="divide-y divide-gray-200">
+                                <!-- Linhas de despesas serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tabela de Receitas a Receber -->
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Receitas</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 0)">
+                                        Data <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 1)">
+                                        Descrição <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 2)">
+                                        Valor <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receitasReceberTableBody" class="divide-y divide-gray-200">
+                                <!-- Linhas de receitas serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Tela de Relatórios -->
         <section id="page-reports" class="page hidden">
             <div class="bg-white rounded-xl shadow-lg p-6 w-full">
@@ -225,10 +299,18 @@
                         <table class="min-w-full bg-white">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 0)">
+                                        Data <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 1)">
+                                        Descrição <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 2)">
+                                        Status <span class="ml-1">↕️</span>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 3)">
+                                        Valor <span class="ml-1">↕️</span>
+                                    </th>
                                     <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                                 </tr>
                             </thead>
@@ -290,6 +372,10 @@
         <button data-page="page-add" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
             <span class="text-xs">Adicionar</span>
+        </button>
+        <button data-page="page-forecasts" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+            <span class="text-xs">Previsões</span>
         </button>
         <button data-page="page-reports" class="nav-button flex-1 flex flex-col items-center justify-center p-2 text-gray-500">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
