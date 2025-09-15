@@ -29,6 +29,17 @@ const deleteForm = document.getElementById('deleteForm');
 const deleteDescricaoEl = document.getElementById('deleteDescricao');
 const deleteDataInicioEl = document.getElementById('deleteDataInicio');
 const deleteDataFimEl = document.getElementById('deleteDataFim');
+
+// --- Variáveis Globais para Cartões de Crédito ---
+let cartoes = []; // Array para armazenar todos os cartões de crédito
+
+// --- Elementos da DOM para Cartões ---
+const cartaoContainer = document.getElementById('cartaoContainer');
+const cartaoCreditoSelect = document.getElementById('cartaoCredito');
+const cartoesContainer = document.getElementById('cartoes-container');
+const totalLimiteEl = document.getElementById('total-limite');
+const totalUsadoEl = document.getElementById('total-usado');
+const totalDisponivelEl = document.getElementById('total-disponivel');
 const totalReceitasPrevistasEl = document.getElementById('totalReceitasPrevistas');
 const totalDespesasPrevistasFiltroEl = document.getElementById('totalDespesasPrevistasFiltro');
 const saldoPeriodoEl = document.getElementById('saldoPeriodo');
@@ -62,16 +73,361 @@ let categoriasSalvas = new Set();
 let db; // Referência para o banco de dados SQLite
 let isMobile = false;
 
+// =================================================================================
+// SISTEMA DE GESTÃO DE CARTÕES DE CRÉDITO
+// =================================================================================
+
+// Estrutura padrão de um cartão
+function criarCartao(nome, limite, bandeira = 'Visa', diaVencimento = 10) {
+    return {
+        id: Date.now() + Math.random(),
+        nome: nome,
+        bandeira: bandeira,
+        limite: limite,
+        limiteDisponivel: limite,
+        diaVencimento: diaVencimento,
+        ativo: true,
+        criadoEm: new Date().toISOString()
+    };
+}
+
+// Carregar cartões padrão se não existirem
+function inicializarCartoesPadrao() {
+    if (cartoes.length === 0) {
+        cartoes = [
+            criarCartao('Caixa Econômica Federal', 5000, 'Visa', 10),
+            criarCartao('Nubank', 3000, 'Mastercard', 15),
+            criarCartao('Itaú', 8000, 'Visa', 20),
+            criarCartao('Bradesco', 4000, 'Mastercard', 25),
+            criarCartao('Santander', 6000, 'Visa', 30)
+        ];
+        salvarDados();
+    }
+}
+
+// Calcular limite usado de um cartão
+function calcularLimiteUsado(cartaoId) {
+    return transacoes
+        .filter(t => t.cartaoId === cartaoId && t.status === 'previsto' && t.tipo === 'despesa')
+        .reduce((total, t) => total + Math.abs(t.valor), 0);
+}
+
+// Atualizar limite disponível dos cartões
+function atualizarLimitesCartoes() {
+    cartoes.forEach(cartao => {
+        const limiteUsado = calcularLimiteUsado(cartao.id);
+        cartao.limiteDisponivel = cartao.limite - limiteUsado;
+    });
+}
+
+// Obter cartão por ID
+function obterCartaoPorId(cartaoId) {
+    console.log('obterCartaoPorId chamada com:', cartaoId, 'tipo:', typeof cartaoId);
+    console.log('Cartões disponíveis:', cartoes.map(c => ({ id: c.id, tipo: typeof c.id, nome: c.nome })));
+    return cartoes.find(c => c.id == cartaoId);
+}
+
+// Obter transações de um cartão específico
+function obterTransacoesCartao(cartaoId, status = null) {
+    let filtradas = transacoes.filter(t => t.cartaoId == cartaoId);
+    if (status) {
+        filtradas = filtradas.filter(t => t.status === status);
+    }
+    return filtradas;
+}
+
+// Atualizar opções do select de cartões
+function atualizarOpcoesCartoes() {
+    if (!cartaoCreditoSelect) return;
+    
+    cartaoCreditoSelect.innerHTML = '<option value="">Selecionar cartão...</option>';
+    
+    cartoes.filter(c => c.ativo).forEach(cartao => {
+        const option = document.createElement('option');
+        option.value = cartao.id;
+        const limiteUsado = calcularLimiteUsado(cartao.id);
+        const disponivel = cartao.limite - limiteUsado;
+        option.textContent = `${cartao.nome} - Disponível: ${formatCurrency(disponivel)}`;
+        cartaoCreditoSelect.appendChild(option);
+    });
+}
+
+// Renderizar cartões na tela de gestão
+function renderizarCartoes() {
+    if (!cartoesContainer) return;
+    
+    cartoesContainer.innerHTML = '';
+    
+    cartoes.forEach(cartao => {
+        const limiteUsado = calcularLimiteUsado(cartao.id);
+        const disponivel = cartao.limite - limiteUsado;
+        const percentualUso = (limiteUsado / cartao.limite) * 100;
+        
+        const transacoesCartao = obterTransacoesCartao(cartao.id, 'previsto');
+        
+        const cartaoDiv = document.createElement('div');
+        cartaoDiv.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm';
+        cartaoDiv.innerHTML = `
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-800">${cartao.nome}</h3>
+                    <p class="text-sm text-gray-600">${cartao.bandeira} • Vence dia ${cartao.diaVencimento}</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm ${disponivel >= 0 ? 'text-green-600' : 'text-red-600'} font-semibold">
+                        ${formatCurrency(disponivel)}
+                    </span>
+                    <p class="text-xs text-gray-500">disponível</p>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <div class="flex justify-between text-sm mb-1">
+                    <span>Limite usado</span>
+                    <span>${formatCurrency(limiteUsado)} de ${formatCurrency(cartao.limite)}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-${percentualUso > 80 ? 'red' : percentualUso > 60 ? 'yellow' : 'blue'}-500 h-2 rounded-full" 
+                         style="width: ${Math.min(percentualUso, 100)}%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">${percentualUso.toFixed(1)}% utilizado</p>
+            </div>
+            
+            <div class="flex justify-between items-center">
+                <button onclick="verDetalhesCartao(${cartao.id})" 
+                        class="text-blue-500 hover:text-blue-700 text-sm font-medium">
+                    Ver Detalhes (${transacoesCartao.length})
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="editarCartao(${cartao.id})" 
+                            class="text-gray-500 hover:text-gray-700 text-sm px-2 py-1 rounded">
+                        ⚙️ Editar
+                    </button>
+                    <button onclick="deletarCartao(${cartao.id})" 
+                            class="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded hover:bg-red-50">
+                        🗑️ Excluir
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        cartoesContainer.appendChild(cartaoDiv);
+    });
+    
+    atualizarResumoCartoes();
+}
+
+// Atualizar resumo geral dos cartões
+function atualizarResumoCartoes() {
+    const totalLimite = cartoes.reduce((sum, c) => sum + c.limite, 0);
+    const totalUsado = cartoes.reduce((sum, c) => sum + calcularLimiteUsado(c.id), 0);
+    const totalDisponivel = totalLimite - totalUsado;
+    
+    if (totalLimiteEl) totalLimiteEl.textContent = formatCurrency(totalLimite);
+    if (totalUsadoEl) totalUsadoEl.textContent = formatCurrency(totalUsado);
+    if (totalDisponivelEl) totalDisponivelEl.textContent = formatCurrency(totalDisponivel);
+}
+
+// Ver detalhes de um cartão específico
+function verDetalhesCartao(cartaoId) {
+    const cartao = obterCartaoPorId(cartaoId);
+    if (!cartao) return;
+    
+    const transacoes = obterTransacoesCartao(cartaoId, 'previsto');
+    
+    let detalhesHTML = `
+        <h3 class="text-lg font-semibold mb-4">Detalhes: ${cartao.nome}</h3>
+        <div class="space-y-2">
+    `;
+    
+    if (transacoes.length === 0) {
+        detalhesHTML += '<p class="text-gray-500">Nenhuma transação pendente neste cartão.</p>';
+    } else {
+        transacoes.forEach(t => {
+            detalhesHTML += `
+                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                    <div>
+                        <span class="font-medium">${t.descricao}</span>
+                        <br><small class="text-gray-600">${formatDateToBrazil(t.data)} • ${t.categoria}</small>
+                    </div>
+                    <span class="font-semibold text-red-600">${formatCurrency(Math.abs(t.valor))}</span>
+                </div>
+            `;
+        });
+    }
+    
+    detalhesHTML += '</div>';
+    
+    // Mostrar em um alert simples (pode ser melhorado com modal)
+    const detalhesWindow = window.open('', '_blank', 'width=400,height=600');
+    detalhesWindow.document.write(`
+        <html>
+            <head><title>Detalhes do Cartão</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+                ${detalhesHTML}
+            </body>
+        </html>
+    `);
+}
+
+// Função temporária para editar cartão (pode ser expandida)
+function editarCartao(cartaoId) {
+    const cartao = obterCartaoPorId(cartaoId);
+    if (!cartao) return;
+    
+    const novoLimite = prompt(`Alterar limite do ${cartao.nome}:`, cartao.limite);
+    if (novoLimite && !isNaN(novoLimite)) {
+        cartao.limite = parseFloat(novoLimite);
+        salvarDados();
+        renderizarCartoes();
+        atualizarOpcoesCartoes();
+        showMessage(`Limite do ${cartao.nome} atualizado!`);
+    }
+}
+
+// Função para deletar cartão com proteção
+function deletarCartao(cartaoId) {
+    console.log('deletarCartao chamada com ID:', cartaoId, 'tipo:', typeof cartaoId);
+    const cartao = obterCartaoPorId(cartaoId);
+    if (!cartao) {
+        console.log('Cartão não encontrado na função deletarCartao!');
+        showMessage('❌ Cartão não encontrado!', 'error');
+        return;
+    }
+    
+    // Verificar se cartão tem transações
+    const transacoesCartao = obterTransacoesCartao(cartaoId);
+    if (transacoesCartao.length > 0) {
+        showMessage(`❌ Não é possível excluir o cartão "${cartao.nome}" pois ele possui ${transacoesCartao.length} transação(ões) associada(s). Exclua primeiro as transações deste cartão.`, 'error');
+        return;
+    }
+    
+    // Abrir modal de confirmação para exclusão
+    console.log('Abrindo modal para cartão:', cartao);
+    abrirModalExclusaoCartao(cartao);
+}
+
+// Função para verificar se cartão pode ser excluído
+function podeExcluirCartao(cartaoId) {
+    const transacoesCartao = obterTransacoesCartao(cartaoId);
+    return transacoesCartao.length === 0;
+}
+
+// Função para excluir cartão definitivamente
+function excluirCartaoDefinitivamente(cartaoId) {
+    console.log('excluirCartaoDefinitivamente chamada com ID:', cartaoId, 'tipo:', typeof cartaoId);
+    
+    // Garantir que cartaoId seja um número
+    const id = parseInt(cartaoId);
+    console.log('ID convertido para número:', id);
+    
+    const cartao = obterCartaoPorId(id);
+    console.log('Cartão encontrado:', cartao);
+    
+    if (!cartao) {
+        console.log('Cartão não encontrado!');
+        showMessage('❌ Erro: Cartão não encontrado!', 'error');
+        return;
+    }
+    
+    // Remover cartão do array
+    const index = cartoes.findIndex(c => parseInt(c.id) === id);
+    console.log('Índice do cartão no array:', index, 'Array de cartões antes:', cartoes.length);
+    
+    if (index > -1) {
+        console.log('Removendo cartão do índice:', index);
+        cartoes.splice(index, 1);
+        console.log('Cartão removido. Array atualizado, novo tamanho:', cartoes.length);
+        salvarDados();
+        renderizarCartoes();
+        atualizarOpcoesCartoes();
+        showMessage(`✅ Cartão "${cartao.nome}" excluído com sucesso!`, 'success');
+        
+        // Fechar modal
+        const modal = document.getElementById('deleteCartaoModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            console.log('Modal fechado');
+        }
+    } else {
+        console.log('Índice não encontrado no array!');
+        showMessage('❌ Erro: Não foi possível localizar o cartão para exclusão!', 'error');
+    }
+}
+
+// Função para abrir modal de exclusão de cartão
+function abrirModalExclusaoCartao(cartao) {
+    const modal = document.getElementById('deleteCartaoModal');
+    const cartaoInfoDelete = document.getElementById('cartaoInfoDelete');
+    const confirmCartaoName = document.getElementById('confirmCartaoName');
+    const confirmDeleteCartao = document.getElementById('confirmDeleteCartao');
+    
+    // Preencher informações do cartão
+    cartaoInfoDelete.innerHTML = `
+        <div class="flex justify-between items-center">
+            <div>
+                <h4 class="font-semibold text-gray-800">${cartao.nome}</h4>
+                <p class="text-sm text-gray-600">${cartao.bandeira} • Limite: ${formatCurrency(cartao.limite)}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-sm font-medium text-gray-700">ID: ${cartao.id}</p>
+                <p class="text-xs text-gray-500">Vence dia ${cartao.diaVencimento}</p>
+            </div>
+        </div>
+    `;
+    
+    // Resetar campo de confirmação
+    confirmCartaoName.value = '';
+    confirmDeleteCartao.disabled = true;
+    confirmDeleteCartao.classList.add('opacity-50');
+    
+    // Armazenar ID do cartão no modal
+    modal.dataset.cartaoId = cartao.id;
+    modal.dataset.cartaoNome = cartao.nome;
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    confirmCartaoName.focus();
+}
+
+// Função unificada para salvar dados
+function salvarDados() {
+    console.log('salvarDados chamada. isMobile:', isMobile);
+    if (isMobile) {
+        // Em mobile, os dados são salvos automaticamente no SQLite
+        atualizarLimitesCartoes();
+    } else {
+        saveDataToLocalStorage();
+        atualizarLimitesCartoes();
+    }
+}
+
 // --- Funções para LocalStorage (fallback para navegador) ---
 function saveDataToLocalStorage() {
+    console.log('Salvando no localStorage. Cartões:', cartoes);
     localStorage.setItem('transacoes', JSON.stringify(transacoes));
     localStorage.setItem('categorias', JSON.stringify(Array.from(categoriasSalvas)));
+    localStorage.setItem('cartoes', JSON.stringify(cartoes));
+    console.log('Dados salvos no localStorage');
 }
 function loadDataFromLocalStorage() {
     const transacoesJSON = localStorage.getItem('transacoes');
     const categoriasJSON = localStorage.getItem('categorias');
-    transacoes = transacoesJSON ? JSON.parse(transacoesJSON) : [];
-    categoriasSalvas = new Set(categoriasJSON ? JSON.parse(categoriasJSON) : []);
+    const cartoesJSON = localStorage.getItem('cartoes');
+    
+    if (transacoesJSON) {
+        transacoes = JSON.parse(transacoesJSON);
+    }
+    if (categoriasJSON) {
+        categoriasSalvas = new Set(JSON.parse(categoriasJSON));
+    }
+    if (cartoesJSON) {
+        cartoes = JSON.parse(cartoesJSON);
+    } else {
+        inicializarCartoesPadrao();
+    }
+    
+    atualizarLimitesCartoes();
 }
 
 // =================================================================================
@@ -305,6 +661,9 @@ function updateUI() {
     renderSummaryByDescription(); // Novo
     renderForecastsPage(); // Novo
     renderIntelligencePage(); // Inteligência Financeira
+    renderChartsPage(); // Gráficos
+    renderizarCartoes(); // Cartões de Crédito
+    atualizarOpcoesCartoes(); // Atualizar select de cartões
 }
 
 function renderCategorias() {
@@ -808,10 +1167,26 @@ window.deleteCategoria = async function(name) {
 
 function updateVisibilityBasedOnType() {
     const isReceita = tipoSelect.value === 'receita';
+    const isDespesa = tipoSelect.value === 'despesa';
+    
+    // Controlar visibilidade do parcelamento
     isParceladaContainer.classList.toggle('hidden', isReceita);
     if (isReceita) {
         isParceladaCheckbox.checked = false;
         parcelamentoFields.classList.add('hidden');
+    }
+    
+    // Controlar visibilidade do cartão de crédito
+    if (cartaoContainer) {
+        cartaoContainer.classList.toggle('hidden', isReceita);
+        if (isReceita && cartaoCreditoSelect) {
+            cartaoCreditoSelect.value = '';
+        }
+    }
+    
+    // Atualizar opções de cartões
+    if (isDespesa) {
+        atualizarOpcoesCartoes();
     }
 }
 
@@ -829,6 +1204,7 @@ transacaoForm.addEventListener('submit', async function(event) {
     const categoria = categoriaEl.value.trim();
     const valorInicial = parseFloat(document.getElementById('valor').value);
     const dataInicial = document.getElementById('data').value;
+    const cartaoId = cartaoCreditoSelect ? cartaoCreditoSelect.value : null;
     
     let newTransactions = [];
 
@@ -845,7 +1221,8 @@ transacaoForm.addEventListener('submit', async function(event) {
                         dataPrevista: dataParcela.toISOString().split('T')[0],
                         descricao: `${descricao} (${i + 1}/${numParcelas})`,
                         status: 'previsto', tipo: 'despesa', categoria,
-                        valorPrevisto: valorParcela, valor: null, data: null
+                        valorPrevisto: valorParcela, valor: null, data: null,
+                        cartaoId: cartaoId
                     });
                 }
             } else if (isRecorrente) {
@@ -859,7 +1236,8 @@ transacaoForm.addEventListener('submit', async function(event) {
                         dataPrevista: dataPrevista.toISOString().split('T')[0],
                         descricao: `${descricao} (Recorrente)`,
                         status: 'previsto', tipo, categoria,
-                        valorPrevisto: valorRecorrente, valor: null, data: null
+                        valorPrevisto: valorRecorrente, valor: null, data: null,
+                        cartaoId: cartaoId
                     });
                 }
             } else {
@@ -867,7 +1245,8 @@ transacaoForm.addEventListener('submit', async function(event) {
                     id: `${Date.now()}`,
                     data: dataInicial, descricao, status: 'realizado', tipo, categoria,
                     valor: tipo === 'despesa' ? -valorInicial : valorInicial,
-                    valorPrevisto: null, dataPrevista: null
+                    valorPrevisto: null, dataPrevista: null,
+                    cartaoId: cartaoId
                 });
             }
 
@@ -1580,6 +1959,742 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =================================================================================
+// SISTEMA DE GRÁFICOS AVANÇADOS
+// =================================================================================
+
+class FinancialCharts {
+    constructor() {
+        this.charts = {};
+        this.colors = {
+            primary: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'],
+            expenses: ['#EF4444', '#DC2626', '#B91C1C', '#991B1B', '#7F1D1D'],
+            incomes: ['#10B981', '#059669', '#047857', '#065F46', '#064E3B'],
+            gradients: {
+                blue: ['#3B82F6', '#1D4ED8'],
+                green: ['#10B981', '#047857'],
+                red: ['#EF4444', '#B91C1C'],
+                purple: ['#8B5CF6', '#6D28D9']
+            }
+        };
+    }
+
+    // Obter dados filtrados por período
+    getFilteredData() {
+        const period = document.getElementById('chartPeriod').value;
+        const startDate = document.getElementById('chartStartDate').value;
+        const endDate = document.getElementById('chartEndDate').value;
+        
+        let filteredTransactions = [...transacoes];
+        const hoje = new Date();
+        
+        if (period !== 'all') {
+            const days = parseInt(period);
+            const limitDate = new Date(hoje);
+            limitDate.setDate(limitDate.getDate() - days);
+            
+            filteredTransactions = filteredTransactions.filter(t => {
+                const transactionDate = new Date(t.data || t.dataPrevista);
+                return transactionDate >= limitDate && transactionDate <= hoje;
+            });
+        }
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            
+            filteredTransactions = filteredTransactions.filter(t => {
+                const transactionDate = new Date(t.data || t.dataPrevista);
+                return transactionDate >= start && transactionDate <= end;
+            });
+        }
+        
+        return filteredTransactions;
+    }
+
+    // Gráfico de Pizza - Despesas por Categoria
+    createExpensesPieChart() {
+        const ctx = document.getElementById('expensesPieChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        // Incluir tanto realizadas quanto previstas
+        const expenses = data.filter(t => t.tipo === 'despesa');
+        const categoryTotals = {};
+        
+        expenses.forEach(t => {
+            const category = t.categoria || 'Sem Categoria';
+            const valor = t.status === 'realizado' ? Math.abs(t.valor) : Math.abs(t.valorPrevisto || 0);
+            categoryTotals[category] = (categoryTotals[category] || 0) + valor;
+        });
+        
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 8); // Top 8 categorias
+        
+        if (this.charts.expensesPie) {
+            this.charts.expensesPie.destroy();
+        }
+        
+        this.charts.expensesPie = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: sortedCategories.map(([category]) => category),
+                datasets: [{
+                    data: sortedCategories.map(([, total]) => total),
+                    backgroundColor: this.colors.expenses,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.raw / total) * 100).toFixed(1);
+                                return `${context.label}: ${formatCurrency(context.raw)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Pizza - Receitas por Categoria (Realizadas + Previstas)
+    createIncomesPieChart() {
+        const ctx = document.getElementById('incomesPieChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        // Incluir tanto realizadas quanto previstas
+        const incomes = data.filter(t => t.tipo === 'receita');
+        const categoryTotals = {};
+        
+        incomes.forEach(t => {
+            const category = t.categoria || 'Sem Categoria';
+            const valor = t.status === 'realizado' ? t.valor : (t.valorPrevisto || 0);
+            categoryTotals[category] = (categoryTotals[category] || 0) + valor;
+        });
+        
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 8);
+        
+        if (this.charts.incomesPie) {
+            this.charts.incomesPie.destroy();
+        }
+        
+        this.charts.incomesPie = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: sortedCategories.map(([category]) => category),
+                datasets: [{
+                    data: sortedCategories.map(([, total]) => total),
+                    backgroundColor: this.colors.incomes,
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.raw / total) * 100).toFixed(1);
+                                return `${context.label}: ${formatCurrency(context.raw)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Linha - Tendência Temporal (Realizado vs Previsto)
+    createTrendsLineChart() {
+        const ctx = document.getElementById('trendsLineChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        // Agrupar por data - REALIZADOS
+        const dailyDataRealizado = {};
+        data.filter(t => t.status === 'realizado').forEach(t => {
+            const date = t.data;
+            if (!dailyDataRealizado[date]) {
+                dailyDataRealizado[date] = { receitas: 0, despesas: 0, saldo: 0 };
+            }
+            
+            if (t.tipo === 'receita') {
+                dailyDataRealizado[date].receitas += t.valor;
+            } else {
+                dailyDataRealizado[date].despesas += Math.abs(t.valor);
+            }
+            dailyDataRealizado[date].saldo = dailyDataRealizado[date].receitas - dailyDataRealizado[date].despesas;
+        });
+        
+        // Agrupar por data - PREVISTOS
+        const dailyDataPrevisto = {};
+        data.filter(t => t.status === 'previsto').forEach(t => {
+            const date = t.data;
+            if (!dailyDataPrevisto[date]) {
+                dailyDataPrevisto[date] = { receitas: 0, despesas: 0, saldo: 0 };
+            }
+            
+            if (t.tipo === 'receita') {
+                dailyDataPrevisto[date].receitas += t.valor;
+            } else {
+                dailyDataPrevisto[date].despesas += Math.abs(t.valor);
+            }
+            dailyDataPrevisto[date].saldo = dailyDataPrevisto[date].receitas - dailyDataPrevisto[date].despesas;
+        });
+        
+        // Criar conjunto único de datas
+        const allDates = [...new Set([...Object.keys(dailyDataRealizado), ...Object.keys(dailyDataPrevisto)])].sort();
+        const labels = allDates.map(date => formatDateToBrazil(date));
+        
+        // Dados realizados
+        const receitasRealizadas = allDates.map(date => dailyDataRealizado[date]?.receitas || 0);
+        const despesasRealizadas = allDates.map(date => dailyDataRealizado[date]?.despesas || 0);
+        const saldoRealizado = allDates.map(date => dailyDataRealizado[date]?.saldo || 0);
+        
+        // Dados previstos
+        const receitasPrevistas = allDates.map(date => dailyDataPrevisto[date]?.receitas || 0);
+        const despesasPrevistas = allDates.map(date => dailyDataPrevisto[date]?.despesas || 0);
+        const saldoPrevisto = allDates.map(date => dailyDataPrevisto[date]?.saldo || 0);
+        
+        if (this.charts.trendsLine) {
+            this.charts.trendsLine.destroy();
+        }
+        
+        this.charts.trendsLine = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Receitas Realizadas',
+                        data: receitasRealizadas,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Receitas Previstas',
+                        data: receitasPrevistas,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Despesas Realizadas',
+                        data: despesasRealizadas,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Despesas Previstas',
+                        data: despesasPrevistas,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Saldo Realizado',
+                        data: saldoRealizado,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: 'Saldo Previsto',
+                        data: saldoPrevisto,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        fill: false,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.dataset.label || '';
+                                const value = context.parsed.y;
+                                return `${label}: R$ ${value.toFixed(2).replace('.', ',')}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Data'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Valor (R$)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+
+    // Gráfico de Barras - Comparação Mensal (Realizado vs Previsto)
+    createMonthlyBarChart() {
+        const ctx = document.getElementById('monthlyBarChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        // Dados realizados
+        const monthlyDataRealizado = {};
+        data.filter(t => t.status === 'realizado').forEach(t => {
+            const date = new Date(t.data);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!monthlyDataRealizado[monthKey]) {
+                monthlyDataRealizado[monthKey] = { receitas: 0, despesas: 0 };
+            }
+            
+            if (t.tipo === 'receita') {
+                monthlyDataRealizado[monthKey].receitas += t.valor;
+            } else {
+                monthlyDataRealizado[monthKey].despesas += Math.abs(t.valor);
+            }
+        });
+        
+        // Dados previstos
+        const monthlyDataPrevisto = {};
+        data.filter(t => t.status === 'previsto').forEach(t => {
+            const date = new Date(t.data);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            if (!monthlyDataPrevisto[monthKey]) {
+                monthlyDataPrevisto[monthKey] = { receitas: 0, despesas: 0 };
+            }
+            
+            if (t.tipo === 'receita') {
+                monthlyDataPrevisto[monthKey].receitas += t.valor;
+            } else {
+                monthlyDataPrevisto[monthKey].despesas += Math.abs(t.valor);
+            }
+        });
+        
+        // Unir todos os meses
+        const allMonths = [...new Set([...Object.keys(monthlyDataRealizado), ...Object.keys(monthlyDataPrevisto)])].sort();
+        const labels = allMonths.map(month => {
+            const [year, monthNum] = month.split('-');
+            const date = new Date(year, monthNum - 1);
+            return date.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+        });
+        
+        if (this.charts.monthlyBar) {
+            this.charts.monthlyBar.destroy();
+        }
+        
+        this.charts.monthlyBar = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Receitas Realizadas',
+                        data: allMonths.map(month => monthlyDataRealizado[month]?.receitas || 0),
+                        backgroundColor: '#10B981',
+                        borderColor: '#047857',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Receitas Previstas',
+                        data: allMonths.map(month => monthlyDataPrevisto[month]?.receitas || 0),
+                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                        borderColor: '#047857',
+                        borderWidth: 2,
+                        borderSkipped: false,
+                        borderDash: [5, 5]
+                    },
+                    {
+                        label: 'Despesas Realizadas',
+                        data: allMonths.map(month => monthlyDataRealizado[month]?.despesas || 0),
+                        backgroundColor: '#EF4444',
+                        borderColor: '#B91C1C',
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Despesas Previstas',
+                        data: allMonths.map(month => monthlyDataPrevisto[month]?.despesas || 0),
+                        backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                        borderColor: '#B91C1C',
+                        borderWidth: 2,
+                        borderSkipped: false,
+                        borderDash: [5, 5]
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Área - Saldo Acumulado
+    createCumulativeAreaChart() {
+        const ctx = document.getElementById('cumulativeAreaChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        // Separar dados realizados e previstos
+        const dailyDataRealizado = {};
+        const dailyDataPrevisto = {};
+        
+        // Processar dados realizados
+        data.filter(t => t.status === 'realizado').forEach(t => {
+            const date = t.data;
+            if (!dailyDataRealizado[date]) {
+                dailyDataRealizado[date] = 0;
+            }
+            
+            if (t.tipo === 'receita') {
+                dailyDataRealizado[date] += t.valor;
+            } else {
+                dailyDataRealizado[date] -= Math.abs(t.valor);
+            }
+        });
+        
+        // Processar dados previstos
+        data.filter(t => t.status === 'previsto').forEach(t => {
+            const date = t.dataPrevista;
+            if (!dailyDataPrevisto[date]) {
+                dailyDataPrevisto[date] = 0;
+            }
+            
+            if (t.tipo === 'receita') {
+                dailyDataPrevisto[date] += (t.valorPrevisto || 0);
+            } else {
+                dailyDataPrevisto[date] -= Math.abs(t.valorPrevisto || 0);
+            }
+        });
+        
+        // Unir todas as datas
+        const allDates = [...new Set([...Object.keys(dailyDataRealizado), ...Object.keys(dailyDataPrevisto)])].sort();
+        
+        // Calcular saldos acumulados
+        let cumulativeBalanceRealizado = 0;
+        let cumulativeBalancePrevisto = 0;
+        
+        const cumulativeDataRealizado = allDates.map(date => {
+            cumulativeBalanceRealizado += (dailyDataRealizado[date] || 0);
+            return cumulativeBalanceRealizado;
+        });
+        
+        const cumulativeDataPrevisto = allDates.map(date => {
+            cumulativeBalancePrevisto += (dailyDataPrevisto[date] || 0);
+            return cumulativeBalancePrevisto;
+        });
+        
+        if (this.charts.cumulativeArea) {
+            this.charts.cumulativeArea.destroy();
+        }
+        
+        this.charts.cumulativeArea = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: allDates.map(date => formatDateToBrazil(date)),
+                datasets: [
+                    {
+                        label: 'Saldo Acumulado Realizado',
+                        data: cumulativeDataRealizado,
+                        fill: true,
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderColor: '#3B82F6',
+                        borderWidth: 3,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Saldo Acumulado Previsto',
+                        data: cumulativeDataPrevisto,
+                        fill: false,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: '#3B82F6',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `Saldo: ${formatCurrency(context.raw)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Rosca - Status das Transações
+    createStatusDoughnutChart() {
+        const ctx = document.getElementById('statusDoughnutChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        const statusCounts = {
+            'Realizadas': data.filter(t => t.status === 'realizado').length,
+            'Previstas': data.filter(t => t.status === 'previsto').length
+        };
+        
+        if (this.charts.statusDoughnut) {
+            this.charts.statusDoughnut.destroy();
+        }
+        
+        this.charts.statusDoughnut = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                    data: Object.values(statusCounts),
+                    backgroundColor: ['#10B981', '#F59E0B'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.raw / total) * 100).toFixed(1);
+                                return `${context.label}: ${context.raw} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Barras Horizontais - Top Categorias
+    createTopCategoriesChart() {
+        const ctx = document.getElementById('topCategoriesChart').getContext('2d');
+        const data = this.getFilteredData();
+        
+        const categoryTotals = {};
+        data.filter(t => t.status === 'realizado').forEach(t => {
+            const category = t.categoria || 'Sem Categoria';
+            categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(t.valor);
+        });
+        
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10);
+        
+        if (this.charts.topCategories) {
+            this.charts.topCategories.destroy();
+        }
+        
+        this.charts.topCategories = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedCategories.map(([category]) => category),
+                datasets: [{
+                    label: 'Valor Total',
+                    data: sortedCategories.map(([, total]) => total),
+                    backgroundColor: this.colors.primary,
+                    borderColor: this.colors.primary.map(color => color),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `Total: ${formatCurrency(context.raw)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Atualizar estatísticas resumidas
+    updateStatistics() {
+        const data = this.getFilteredData();
+        const realizedTransactions = data.filter(t => t.status === 'realizado');
+        
+        const totalTransactions = realizedTransactions.length;
+        const totalValue = realizedTransactions.reduce((sum, t) => sum + Math.abs(t.valor), 0);
+        const avgTransaction = totalTransactions > 0 ? totalValue / totalTransactions : 0;
+        const maxTransaction = realizedTransactions.length > 0 ? 
+            Math.max(...realizedTransactions.map(t => Math.abs(t.valor))) : 0;
+        const categoriesCount = new Set(realizedTransactions.map(t => t.categoria)).size;
+        
+        document.getElementById('totalTransactions').textContent = totalTransactions;
+        document.getElementById('avgTransaction').textContent = formatCurrency(avgTransaction);
+        document.getElementById('maxTransaction').textContent = formatCurrency(maxTransaction);
+        document.getElementById('categoriesCount').textContent = categoriesCount;
+    }
+
+    // Renderizar todos os gráficos
+    renderAllCharts() {
+        this.createExpensesPieChart();
+        this.createIncomesPieChart();
+        this.createTrendsLineChart();
+        this.createMonthlyBarChart();
+        this.createCumulativeAreaChart();
+        this.createStatusDoughnutChart();
+        this.createTopCategoriesChart();
+        this.updateStatistics();
+    }
+
+    // Destruir todos os gráficos
+    destroyAllCharts() {
+        Object.values(this.charts).forEach(chart => {
+            if (chart) chart.destroy();
+        });
+        this.charts = {};
+    }
+}
+
+// Instância da classe de gráficos
+window.financialCharts = new FinancialCharts();
+
+// Função para renderizar a página de gráficos
+function renderChartsPage() {
+    // Pequeno delay para garantir que os canvas estão prontos
+    setTimeout(() => {
+        window.financialCharts.renderAllCharts();
+    }, 100);
+}
+
+
+// =================================================================================
 // EVENT LISTENERS DOS FILTROS DE PREVISÕES
 // =================================================================================
 
@@ -1666,5 +2781,296 @@ document.addEventListener('DOMContentLoaded', () => {
         // Para mobile, a UI é atualizada no onDeviceReady
     }
     updateVisibilityBasedOnType();
+    
+    // Event listeners para a página de gráficos
+    const chartPeriodSelect = document.getElementById('chart-period');
+    if (chartPeriodSelect) {
+        chartPeriodSelect.addEventListener('change', () => {
+            if (window.financialCharts) {
+                window.financialCharts.renderAllCharts();
+            }
+        });
+    }
+    
+    const refreshChartsBtn = document.getElementById('refresh-charts');
+    if (refreshChartsBtn) {
+        refreshChartsBtn.addEventListener('click', () => {
+            if (window.financialCharts) {
+                window.financialCharts.renderAllCharts();
+            }
+        });
+    }
+    
+    // Event listeners para o sistema de ajuda
+    const generalHelpBtn = document.getElementById('generalHelpBtn');
+    const generalHelpModal = document.getElementById('generalHelpModal');
+    const closeGeneralHelp = document.getElementById('closeGeneralHelp');
+    
+    if (generalHelpBtn && generalHelpModal && closeGeneralHelp) {
+        generalHelpBtn.addEventListener('click', () => {
+            generalHelpModal.classList.remove('hidden');
+        });
+        
+        closeGeneralHelp.addEventListener('click', () => {
+            generalHelpModal.classList.add('hidden');
+        });
+        
+        // Fechar modal clicando fora dele
+        generalHelpModal.addEventListener('click', (e) => {
+            if (e.target === generalHelpModal) {
+                generalHelpModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Event listeners para cartões de crédito
+    const btnNovoCartao = document.getElementById('btn-novo-cartao');
+    if (btnNovoCartao) {
+        btnNovoCartao.addEventListener('click', () => {
+            const nome = prompt('Nome do novo cartão:');
+            if (!nome) return;
+            
+            const limite = prompt('Limite do cartão:', '1000');
+            if (!limite || isNaN(limite)) return;
+            
+            const bandeira = prompt('Bandeira (Visa/Mastercard):', 'Visa');
+            const diaVencimento = prompt('Dia do vencimento (1-30):', '10');
+            
+            const novoCartao = criarCartao(nome.trim(), parseFloat(limite), bandeira, parseInt(diaVencimento));
+            cartoes.push(novoCartao);
+            salvarDados();
+            renderizarCartoes();
+            atualizarOpcoesCartoes();
+            showMessage(`Cartão ${nome} adicionado com sucesso!`);
+        });
+    }
+
+    // =================================================================================
+    // SISTEMA DE CONFIGURAÇÕES E RESET
+    // =================================================================================
+
+    // Função para resetar completamente o sistema
+    function resetarSistemaCompleto() {
+        try {
+            // Limpar arrays em memória
+            transacoes = [];
+            cartoes = [];
+            categoriasSalvas = new Set();
+
+            if (isMobile && db) {
+                // Reset do banco SQLite (mobile)
+                db.execute('DELETE FROM transacoes');
+                db.execute('DELETE FROM cartoes');
+                db.execute('DELETE FROM configuracoes');
+                console.log('Dados do SQLite removidos');
+            } else {
+                // Reset do LocalStorage (navegador)
+                localStorage.removeItem('transacoes');
+                localStorage.removeItem('cartoes');
+                localStorage.removeItem('categorias');
+                console.log('Dados do LocalStorage removidos');
+            }
+
+            // Reinicializar cartões padrão
+            inicializarCartoesPadrao();
+            
+            // Atualizar interface
+            updateUI();
+            renderizarCartoes();
+            atualizarOpcoesCartoes();
+            
+            showMessage('✅ Sistema resetado com sucesso! Todos os dados foram apagados.', 'success');
+            
+            // Fechar modal
+            document.getElementById('configModal').classList.add('hidden');
+            resetarModalConfirmacao();
+            
+        } catch (error) {
+            console.error('Erro ao resetar sistema:', error);
+            showMessage('❌ Erro ao resetar sistema. Tente novamente.', 'error');
+        }
+    }
+
+    // Função para resetar o modal de confirmação
+    function resetarModalConfirmacao() {
+        document.getElementById('resetStep1').classList.remove('hidden');
+        document.getElementById('resetStep2').classList.add('hidden');
+        document.getElementById('resetStep3').classList.add('hidden');
+        document.getElementById('confirmText').value = '';
+        document.getElementById('confirmStep2').disabled = true;
+        document.getElementById('buttonText').textContent = 'Segurar para apagar definitivamente';
+        document.getElementById('progressBar').style.width = '0%';
+    }
+
+    // Configurar modal de configurações
+    function configurarModalConfiguracao() {
+        const configBtn = document.getElementById('configBtn');
+        const configModal = document.getElementById('configModal');
+        const closeConfigModal = document.getElementById('closeConfigModal');
+        const confirmStep1 = document.getElementById('confirmStep1');
+        const confirmStep2 = document.getElementById('confirmStep2');
+        const confirmText = document.getElementById('confirmText');
+        const finalConfirm = document.getElementById('finalConfirm');
+        const cancelReset = document.getElementById('cancelReset');
+        const buttonText = document.getElementById('buttonText');
+        const progressBar = document.getElementById('progressBar');
+
+        let holdTimer = null;
+        let holdProgress = 0;
+
+        // Abrir modal
+        configBtn.addEventListener('click', () => {
+            configModal.classList.remove('hidden');
+            resetarModalConfirmacao();
+        });
+
+        // Fechar modal
+        closeConfigModal.addEventListener('click', () => {
+            configModal.classList.add('hidden');
+            resetarModalConfirmacao();
+        });
+
+        // Fechar ao clicar fora
+        configModal.addEventListener('click', (e) => {
+            if (e.target === configModal) {
+                configModal.classList.add('hidden');
+                resetarModalConfirmacao();
+            }
+        });
+
+        // Passo 1: Primeira confirmação
+        confirmStep1.addEventListener('click', () => {
+            document.getElementById('resetStep1').classList.add('hidden');
+            document.getElementById('resetStep2').classList.remove('hidden');
+            confirmText.focus();
+        });
+
+        // Passo 2: Verificar texto digitado
+        confirmText.addEventListener('input', () => {
+            const isCorrect = confirmText.value.trim().toUpperCase() === 'APAGAR TUDO';
+            confirmStep2.disabled = !isCorrect;
+            confirmStep2.classList.toggle('opacity-50', !isCorrect);
+        });
+
+        confirmStep2.addEventListener('click', () => {
+            if (confirmText.value.trim().toUpperCase() === 'APAGAR TUDO') {
+                document.getElementById('resetStep2').classList.add('hidden');
+                document.getElementById('resetStep3').classList.remove('hidden');
+            }
+        });
+
+        // Passo 3: Segurar botão por 3 segundos
+        finalConfirm.addEventListener('mousedown', iniciarHold);
+        finalConfirm.addEventListener('mouseup', cancelarHold);
+        finalConfirm.addEventListener('mouseleave', cancelarHold);
+        finalConfirm.addEventListener('touchstart', iniciarHold);
+        finalConfirm.addEventListener('touchend', cancelarHold);
+
+        function iniciarHold() {
+            holdProgress = 0;
+            buttonText.textContent = 'Segurando... Mantenha pressionado';
+            
+            holdTimer = setInterval(() => {
+                holdProgress += 2; // Incrementa 2% a cada 60ms (100% em 3 segundos)
+                progressBar.style.width = `${holdProgress}%`;
+                
+                if (holdProgress >= 100) {
+                    cancelarHold();
+                    resetarSistemaCompleto();
+                }
+            }, 60);
+        }
+
+        function cancelarHold() {
+            if (holdTimer) {
+                clearInterval(holdTimer);
+                holdTimer = null;
+            }
+            holdProgress = 0;
+            progressBar.style.width = '0%';
+            buttonText.textContent = 'Segurar para apagar definitivamente';
+        }
+
+        // Botão cancelar
+        cancelReset.addEventListener('click', () => {
+            configModal.classList.add('hidden');
+            resetarModalConfirmacao();
+        });
+    }
+
+    // Chamar configuração do modal de configurações
+    configurarModalConfiguracao();
+
+    // =================================================================================
+    // SISTEMA DE EXCLUSÃO DE CARTÕES
+    // =================================================================================
+
+    // Configurar eventos do modal de exclusão de cartão
+    function configurarModalExclusaoCartao() {
+        const modal = document.getElementById('deleteCartaoModal');
+        const closeModal = document.getElementById('closeDeleteCartaoModal');
+        const confirmCartaoName = document.getElementById('confirmCartaoName');
+        const confirmDeleteCartao = document.getElementById('confirmDeleteCartao');
+        const cancelDeleteCartao = document.getElementById('cancelDeleteCartao');
+
+        // Fechar modal
+        function fecharModal() {
+            modal.classList.add('hidden');
+            confirmCartaoName.value = '';
+            confirmDeleteCartao.disabled = true;
+            confirmDeleteCartao.classList.add('opacity-50');
+        }
+
+        closeModal.addEventListener('click', fecharModal);
+        cancelDeleteCartao.addEventListener('click', fecharModal);
+
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                fecharModal();
+            }
+        });
+
+        // Verificar nome digitado
+        confirmCartaoName.addEventListener('input', () => {
+            const nomeCartao = modal.dataset.cartaoNome;
+            const nomeDigitado = confirmCartaoName.value.trim();
+            const isCorrect = nomeDigitado.toLowerCase() === nomeCartao.toLowerCase();
+            
+            confirmDeleteCartao.disabled = !isCorrect;
+            confirmDeleteCartao.classList.toggle('opacity-50', !isCorrect);
+        });
+
+        // Confirmar exclusão
+        confirmDeleteCartao.addEventListener('click', () => {
+            const cartaoId = parseInt(modal.dataset.cartaoId);
+            const nomeCartao = modal.dataset.cartaoNome;
+            const nomeDigitado = confirmCartaoName.value.trim();
+            
+            console.log('Tentando excluir cartão:', { cartaoId, nomeCartao, nomeDigitado });
+            
+            if (nomeDigitado.toLowerCase() === nomeCartao.toLowerCase()) {
+                console.log('Nomes conferem, executando exclusão...');
+                excluirCartaoDefinitivamente(cartaoId);
+                fecharModal();
+            } else {
+                console.log('Nomes não conferem!', { 
+                    esperado: nomeCartao.toLowerCase(), 
+                    digitado: nomeDigitado.toLowerCase() 
+                });
+            }
+        });
+
+        // Permitir Enter para confirmar
+        confirmCartaoName.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !confirmDeleteCartao.disabled) {
+                confirmDeleteCartao.click();
+            }
+        });
+    }
+
+    // Chamar configuração do modal de exclusão
+    configurarModalExclusaoCartao();
+    
     // A chamada inicial para updateUI() será feita após a conexão com o banco de dados ou carregamento do localStorage
 });
