@@ -1338,9 +1338,42 @@
         </div>
     </div>
 
+    <!-- Capacitor -->
     <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
     <script src="https://unpkg.com/@capacitor-community/sqlite@latest/dist/capacitor-sqlite.js"></script>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Configurações Globais -->
+    <script src="js/config/AppConfig.js"></script>
+    
+    <!-- Utilitários -->
+    <script src="js/utils/DateUtils.js"></script>
+    <script src="js/utils/CurrencyUtils.js"></script>
+    <script src="js/utils/ValidationUtils.js"></script>
+    <script src="js/utils/ChartUtils.js"></script>
+    
+    <!-- Modelos -->
+    <script src="js/models/Transacao.js"></script>
+    <script src="js/models/Cartao.js"></script>
+    <script src="js/models/Categoria.js"></script>
+    
+    <!-- Serviços -->
+    <script src="js/services/StorageService.js"></script>
+    <script src="js/services/TransacaoService.js"></script>
+    <script src="js/services/CartaoService.js"></script>
+    <script src="js/services/CategoriaService.js"></script>
+    
+    <!-- Controladores -->
+    <script src="js/controllers/TransacaoController.js"></script>
+    <script src="js/controllers/CartaoController.js"></script>
+    <script src="js/controllers/DashboardController.js"></script>
+    
+    <!-- Inicializador do Sistema Modular -->
+    <script src="js/AppInitializer.js"></script>
+    
+    <!-- Script principal (legado - será removido após migração completa) -->
     <script src="script.js" defer></script>
 </body>
 </html>
