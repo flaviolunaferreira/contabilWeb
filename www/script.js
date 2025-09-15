@@ -124,7 +124,10 @@ function atualizarLimitesCartoes() {
 function obterCartaoPorId(cartaoId) {
     console.log('obterCartaoPorId chamada com:', cartaoId, 'tipo:', typeof cartaoId);
     console.log('Cartões disponíveis:', cartoes.map(c => ({ id: c.id, tipo: typeof c.id, nome: c.nome })));
-    return cartoes.find(c => c.id == cartaoId);
+    
+    // Usar comparação de números para IDs com decimais
+    const id = parseFloat(cartaoId);
+    return cartoes.find(c => parseFloat(c.id) === id);
 }
 
 // Obter transações de um cartão específico
@@ -317,8 +320,8 @@ function podeExcluirCartao(cartaoId) {
 function excluirCartaoDefinitivamente(cartaoId) {
     console.log('excluirCartaoDefinitivamente chamada com ID:', cartaoId, 'tipo:', typeof cartaoId);
     
-    // Garantir que cartaoId seja um número
-    const id = parseInt(cartaoId);
+    // Garantir que cartaoId seja um número (preservando decimais)
+    const id = parseFloat(cartaoId);
     console.log('ID convertido para número:', id);
     
     const cartao = obterCartaoPorId(id);
@@ -330,8 +333,8 @@ function excluirCartaoDefinitivamente(cartaoId) {
         return;
     }
     
-    // Remover cartão do array
-    const index = cartoes.findIndex(c => parseInt(c.id) === id);
+    // Remover cartão do array usando comparação de números
+    const index = cartoes.findIndex(c => parseFloat(c.id) === id);
     console.log('Índice do cartão no array:', index, 'Array de cartões antes:', cartoes.length);
     
     if (index > -1) {
@@ -357,10 +360,16 @@ function excluirCartaoDefinitivamente(cartaoId) {
 
 // Função para abrir modal de exclusão de cartão
 function abrirModalExclusaoCartao(cartao) {
+    console.log('🚀 Abrindo modal de exclusão para cartão:', cartao);
     const modal = document.getElementById('deleteCartaoModal');
     const cartaoInfoDelete = document.getElementById('cartaoInfoDelete');
     const confirmCartaoName = document.getElementById('confirmCartaoName');
     const confirmDeleteCartao = document.getElementById('confirmDeleteCartao');
+    
+    if (!modal) {
+        console.error('❌ Modal deleteCartaoModal não encontrado!');
+        return;
+    }
     
     // Preencher informações do cartão
     cartaoInfoDelete.innerHTML = `
@@ -385,9 +394,16 @@ function abrirModalExclusaoCartao(cartao) {
     modal.dataset.cartaoId = cartao.id;
     modal.dataset.cartaoNome = cartao.nome;
     
+    console.log('📝 Dados armazenados no modal:', {
+        cartaoId: modal.dataset.cartaoId,
+        cartaoNome: modal.dataset.cartaoNome,
+        modalDataset: modal.dataset
+    });
+    
     // Mostrar modal
     modal.classList.remove('hidden');
     confirmCartaoName.focus();
+    console.log('✅ Modal aberto com sucesso');
 }
 
 // Função unificada para salvar dados
@@ -3051,27 +3067,54 @@ document.addEventListener('DOMContentLoaded', () => {
             const nomeDigitado = confirmCartaoName.value.trim();
             const isCorrect = nomeDigitado.toLowerCase() === nomeCartao.toLowerCase();
             
+            console.log('🔄 Input alterado:', {
+                nomeCartao,
+                nomeDigitado,
+                isCorrect,
+                nomeCartaoLower: nomeCartao?.toLowerCase(),
+                nomeDigitadoLower: nomeDigitado.toLowerCase()
+            });
+            
             confirmDeleteCartao.disabled = !isCorrect;
             confirmDeleteCartao.classList.toggle('opacity-50', !isCorrect);
+            
+            if (isCorrect) {
+                console.log('✅ Nome correto! Botão habilitado');
+            } else {
+                console.log('❌ Nome incorreto! Botão desabilitado');
+            }
         });
 
         // Confirmar exclusão
         confirmDeleteCartao.addEventListener('click', () => {
-            const cartaoId = parseInt(modal.dataset.cartaoId);
+            console.log('🔴 Botão de confirmar exclusão clicado!');
+            const cartaoId = parseFloat(modal.dataset.cartaoId); // Usar parseFloat em vez de parseInt
             const nomeCartao = modal.dataset.cartaoNome;
             const nomeDigitado = confirmCartaoName.value.trim();
             
-            console.log('Tentando excluir cartão:', { cartaoId, nomeCartao, nomeDigitado });
+            console.log('📊 Dados do modal:', {
+                cartaoId,
+                nomeCartao,
+                nomeDigitado,
+                modalDataset: modal.dataset
+            });
+            
+            console.log('🔍 Comparação de nomes:', {
+                nomeCartaoLower: nomeCartao.toLowerCase(),
+                nomeDigitadoLower: nomeDigitado.toLowerCase(),
+                saoIguais: nomeDigitado.toLowerCase() === nomeCartao.toLowerCase()
+            });
             
             if (nomeDigitado.toLowerCase() === nomeCartao.toLowerCase()) {
-                console.log('Nomes conferem, executando exclusão...');
+                console.log('✅ Nomes conferem, executando exclusão...');
                 excluirCartaoDefinitivamente(cartaoId);
                 fecharModal();
             } else {
-                console.log('Nomes não conferem!', { 
+                console.log('❌ Nomes não conferem!', { 
                     esperado: nomeCartao.toLowerCase(), 
                     digitado: nomeDigitado.toLowerCase() 
                 });
+                alert('Nome não confere! Digite exatamente: ' + nomeCartao);
             }
         });
 
