@@ -111,18 +111,35 @@ class AppInitializer {
         
         try {
             // Inicializar StorageService
+            let storageService = null;
             if (window.StorageService) {
-                await window.StorageService.inicializar();
+                storageService = new window.StorageService();
+                await storageService.init();
                 console.log('✅ StorageService inicializado');
             }
 
             // Carregar categorias padrão se necessário
-            if (window.CategoriaService) {
-                const categorias = await window.CategoriaService.listarTodas();
+            if (window.CategoriaService && storageService) {
+                const categoriaService = new window.CategoriaService(storageService);
+                await categoriaService.init();
+                const categorias = categoriaService.obterTodas();
                 if (categorias.length === 0) {
-                    await window.CategoriaService.criarCategoriasIniciais();
+                    await categoriaService.criarCategoriasDefault();
                     console.log('✅ Categorias padrão criadas');
                 }
+            }
+
+            // Inicializar outros serviços se necessário
+            if (window.TransacaoService && storageService) {
+                const transacaoService = new window.TransacaoService(storageService);
+                await transacaoService.init();
+                console.log('✅ TransacaoService inicializado');
+            }
+
+            if (window.CartaoService && storageService) {
+                const cartaoService = new window.CartaoService(storageService);
+                await cartaoService.init();
+                console.log('✅ CartaoService inicializado');
             }
 
         } catch (error) {
@@ -169,16 +186,16 @@ class AppInitializer {
                 const valorFormatado = window.CurrencyUtils.formatarReal(1234.56);
                 console.log('💰 Valor formatado:', valorFormatado);
                 
-                const valorParseado = window.CurrencyUtils.parseReal('R$ 1.234,56');
+                const valorParseado = window.CurrencyUtils.parseMoeda('R$ 1.234,56');
                 console.log('💰 Valor parseado:', valorParseado);
             }
 
             // Testar ValidationUtils
             if (window.ValidationUtils) {
-                const emailValido = window.ValidationUtils.validarEmail('test@example.com');
+                const emailValido = window.ValidationUtils.email('test@example.com');
                 console.log('📧 Email válido:', emailValido);
                 
-                const cpfValido = window.ValidationUtils.validarCPF('123.456.789-09');
+                const cpfValido = window.ValidationUtils.cpf('123.456.789-09');
                 console.log('📄 CPF válido:', cpfValido);
             }
 

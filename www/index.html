@@ -322,7 +322,7 @@
                         <span class="help-icon">?</span>
                         <span class="tooltip-text">
                             <strong>Página de Previsões</strong><br>
-                            Veja todas as transações futuras programadas. Use os filtros para encontrar rapidamente o que procura por período, categoria, tipo ou valor.
+                            Veja todas as transações futuras programadas. Use os filtros para encontrar rapidamente o que procura por período, categoria, cartão, tipo ou valor.
                         </span>
                     </div>
                 </h2>
@@ -334,13 +334,13 @@
                             <span class="help-icon">?</span>
                             <span class="tooltip-text">
                                 <strong>Sistema de Filtros</strong><br>
-                                Use os filtros para encontrar transações específicas. Combine múltiplos filtros para buscas mais precisas. Clique em "Aplicar" para filtrar ou "Limpar" para ver tudo.
+                                Use os filtros para encontrar transações específicas. Combine múltiplos filtros para buscas mais precisas: período, tipo, categoria, cartão, descrição e valor. Os filtros são aplicados automaticamente quando você faz as seleções. Clique em "Limpar" para remover todos os filtros.
                             </span>
                         </div>
                     </h3>
                     
                     <!-- Primeira linha de filtros -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
                         <div>
                             <label for="forecastPeriodFilter" class="block text-sm font-medium text-gray-700">Período
                                 <div class="help-tooltip inline-block">
@@ -374,6 +374,22 @@
                             <select id="forecastCategoryFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
                                 <option value="all">Todas as Categorias</option>
                                 <!-- Categorias serão preenchidas dinamicamente -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="forecastCardFilter" class="block text-sm font-medium text-gray-700">Cartão
+                                <div class="help-tooltip inline-block">
+                                    <span class="help-icon">?</span>
+                                    <span class="tooltip-text">
+                                        <strong>Filtro por Cartão</strong><br>
+                                        Filtre apenas as despesas de um cartão de crédito específico. Útil para controlar gastos por cartão.
+                                    </span>
+                                </div>
+                            </label>
+                            <select id="forecastCardFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="all">Todos os Cartões</option>
+                                <option value="no-card">Sem Cartão</option>
+                                <!-- Cartões serão preenchidos dinamicamente -->
                             </select>
                         </div>
                         <div>
@@ -418,8 +434,8 @@
 
                     <!-- Botões de ação -->
                     <div class="flex flex-wrap gap-2">
-                        <button id="applyForecastFilters" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                            ✅ Aplicar Filtros
+                        <button id="debugForecastBtn" class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors" style="display: none;">
+                            🐛 Debug Transações
                         </button>
                         <button id="clearForecastFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
                             🗑️ Limpar Filtros

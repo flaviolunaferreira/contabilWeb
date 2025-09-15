@@ -175,6 +175,11 @@ function atualizarOpcoesCartoes() {
         option.textContent = `${cartao.nome} - Disponível: ${formatCurrency(disponivel)}`;
         cartaoCreditoSelect.appendChild(option);
     });
+    
+    // Atualizar também o filtro de cartões na página de previsões
+    if (typeof populateForecastCardFilter === 'function') {
+        populateForecastCardFilter();
+    }
 }
 
 // =================================================================================
@@ -995,6 +1000,38 @@ function loadDataFromLocalStorage() {
 // Inicialização simples para navegador
 document.addEventListener('DOMContentLoaded', function() {
     loadDataFromLocalStorage();
+    
+    // Log para debugar transações carregadas
+    console.log('📊 Dados carregados:', {
+        totalTransacoes: transacoes.length,
+        transacoesPrevistas: transacoes.filter(t => t.status === 'previsto').length,
+        transacoesRealizadas: transacoes.filter(t => t.status === 'realizado').length,
+        cartoes: cartoes.map(c => ({nome: c.nome, id: c.id}))
+    });
+    
+    // Mostrar algumas transações previstas para debug
+    const previstas = transacoes.filter(t => t.status === 'previsto');
+    if (previstas.length > 0) {
+        console.log('🔮 Transações previstas encontradas:', previstas.slice(0, 5));
+    }
+    
+    // Adicionar dados de teste para previsões (DESABILITADO para não interferir com dados reais)
+    /*
+    if (!localStorage.getItem('dadosTesteAdicionados')) {
+        adicionarDadosTestePrevioes();
+        localStorage.setItem('dadosTesteAdicionados', 'true');
+    } else {
+        // Forçar recriação dos dados de teste (apenas durante desenvolvimento)
+        const forcarRecriacao = !localStorage.getItem('dadosTesteV2');
+        if (forcarRecriacao) {
+            // Remover dados de teste antigos
+            transacoes = transacoes.filter(t => !t.id.startsWith('test_prev_'));
+            adicionarDadosTestePrevioes();
+            localStorage.setItem('dadosTesteV2', 'true');
+        }
+    }
+    */
+    
     updateUI();
     showMessage('Sistema carregado!', 2000);
     
@@ -1361,10 +1398,18 @@ function applyForecastFilters() {
     const periodFilter = document.getElementById('forecastPeriodFilter').value;
     const typeFilter = document.getElementById('forecastTypeFilter').value;
     const categoryFilter = document.getElementById('forecastCategoryFilter').value;
+    const cardFilter = document.getElementById('forecastCardFilter').value;
     const descriptionFilter = document.getElementById('forecastDescriptionFilter').value.toLowerCase();
     const minValue = parseFloat(document.getElementById('forecastMinValue').value) || 0;
     const maxValue = parseFloat(document.getElementById('forecastMaxValue').value) || Infinity;
     const sortBy = document.getElementById('forecastSortBy').value;
+    
+    console.log('🔍 Aplicando filtros:', {
+        periodo: periodFilter,
+        cartao: cardFilter,
+        totalTransacoes: transacoes.length,
+        transacoesPrevistas: transacoes.filter(t => t.status === 'previsto').length
+    });
     
     const hoje = new Date();
     let dataLimite = new Date(hoje);
@@ -1395,6 +1440,13 @@ function applyForecastFilters() {
             if (startDate && endDate) {
                 const start = new Date(startDate);
                 const end = new Date(endDate);
+                
+                // Validar se as datas não estão invertidas
+                if (start > end) {
+                    console.warn('Data inicial posterior à data final. Filtro ignorado.');
+                    return true; // Mostrar todas se datas estão invertidas
+                }
+                
                 if (dataTransacao < start || dataTransacao > end) return false;
             }
         } else {
@@ -1406,6 +1458,47 @@ function applyForecastFilters() {
         
         // Filtro de categoria
         if (categoryFilter !== 'all' && t.categoria !== categoryFilter) return false;
+        
+        // Filtro de cartão
+        if (cardFilter !== 'all') {
+            console.log('🔍 FILTRO CARTÃO DEBUG:', {
+                cardFilter,
+                cardFilterType: typeof cardFilter,
+                transacaoId: t.id,
+                transacaoDescricao: t.descricao,
+                cartaoId: t.cartaoId,
+                cartaoIdType: typeof t.cartaoId
+            });
+            
+            if (cardFilter === 'no-card') {
+                // Mostrar apenas transações sem cartão
+                if (t.cartaoId) {
+                    console.log('❌ Rejeitando por ter cartão quando filtro é no-card');
+                    return false;
+                }
+            } else {
+                // cardFilter agora é o ID do cartão diretamente
+                // CORREÇÃO: Usar parseFloat para preservar decimais dos IDs
+                const cardFilterId = parseFloat(cardFilter);
+                const transactionCardId = parseFloat(t.cartaoId);
+                
+                console.log('🔢 COMPARAÇÃO:', {
+                    cardFilterId,
+                    transactionCardId,
+                    saoIguais: transactionCardId === cardFilterId,
+                    // Debug adicional
+                    cardFilterOriginal: cardFilter,
+                    cartaoIdOriginal: t.cartaoId
+                });
+                
+                if (transactionCardId !== cardFilterId) {
+                    console.log('❌ Rejeitando transação - IDs diferentes');
+                    return false;
+                } else {
+                    console.log('✅ Transação aceita - IDs iguais');
+                }
+            }
+        }
         
         // Filtro de descrição
         if (descriptionFilter && !t.descricao.toLowerCase().includes(descriptionFilter)) return false;
@@ -1505,10 +1598,28 @@ function populateForecastCategoryFilter() {
     });
 }
 
+function populateForecastCardFilter() {
+    const cardSelect = document.getElementById('forecastCardFilter');
+    if (!cardSelect) return;
+    
+    cardSelect.innerHTML = '<option value="all">Todos os Cartões</option><option value="no-card">Sem Cartão</option>';
+    
+    // Obter cartões ativos
+    const cartoesAtivos = cartoes.filter(cartao => cartao.ativo !== false);
+    
+    cartoesAtivos.forEach(cartao => {
+        const option = document.createElement('option');
+        option.value = cartao.id; // Usando ID em vez de nome
+        option.textContent = cartao.nome;
+        cardSelect.appendChild(option);
+    });
+}
+
 function clearForecastFilters() {
     document.getElementById('forecastPeriodFilter').value = '7';
     document.getElementById('forecastTypeFilter').value = 'all';
     document.getElementById('forecastCategoryFilter').value = 'all';
+    document.getElementById('forecastCardFilter').value = 'all';
     document.getElementById('forecastDescriptionFilter').value = '';
     document.getElementById('forecastMinValue').value = '';
     document.getElementById('forecastMaxValue').value = '';
@@ -1537,8 +1648,9 @@ function toggleForecastFilters() {
 }
 
 function renderForecastsPage() {
-    // Atualizar categorias no filtro
+    // Atualizar categorias e cartões nos filtros
     populateForecastCategoryFilter();
+    populateForecastCardFilter();
     
     // Renderizar com filtros aplicados
     renderFilteredForecastsPage();
@@ -1596,8 +1708,9 @@ window.showEditTransacaoModal = function(id) {
     const valor = transacao.status === 'realizado' ? transacao.valor : transacao.valorPrevisto;
     document.getElementById('editValor').value = Math.abs(valor);
     document.getElementById('editDescricao').value = transacao.descricao;
-    // A data pode ser 'data' ou 'dataPrevista'
-    document.getElementById('editData').value = transacao.data || transacao.dataPrevista;
+    // A data pode ser 'data' ou 'dataPrevista' - converte para ISO para o input date
+    const dataTransacao = transacao.data || transacao.dataPrevista;
+    document.getElementById('editData').value = dataParaISO(dataTransacao);
     document.getElementById('editCategoria').value = transacao.categoria;
     
     editTransacaoModal.classList.remove('hidden');
@@ -3158,13 +3271,28 @@ function renderChartsPage() {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Event listeners para os filtros da página de previsões
-    const applyFiltersBtn = document.getElementById('applyForecastFilters');
+    const debugBtn = document.getElementById('debugForecastBtn');
     const clearFiltersBtn = document.getElementById('clearForecastFilters');
     const toggleFiltersBtn = document.getElementById('toggleFilters');
     const periodFilter = document.getElementById('forecastPeriodFilter');
     
-    if (applyFiltersBtn) {
-        applyFiltersBtn.addEventListener('click', renderFilteredForecastsPage);
+    // Mostrar botão de debug se estiver em desenvolvimento
+    if (debugBtn && window.location.hostname === 'localhost') {
+        debugBtn.style.display = 'inline-block';
+        debugBtn.addEventListener('click', function() {
+            console.log('🐛 DEBUG - Transações completas:', transacoes);
+            console.log('🐛 DEBUG - Cartões:', cartoes);
+            console.log('🐛 DEBUG - Transações previstas:', transacoes.filter(t => t.status === 'previsto'));
+            
+            // Verificar transações do Nubank especificamente
+            const nubankCartao = cartoes.find(c => c.nome === 'Nubank');
+            if (nubankCartao) {
+                const transacoesNubank = transacoes.filter(t => t.cartaoId === nubankCartao.id);
+                console.log('🐛 DEBUG - Transações Nubank:', transacoesNubank);
+            }
+            
+            alert('Verifique o console (F12) para ver os dados de debug');
+        });
     }
     
     if (clearFiltersBtn) {
@@ -3190,7 +3318,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event listeners para aplicar filtros em tempo real
     const filters = [
         'forecastTypeFilter',
-        'forecastCategoryFilter', 
+        'forecastCategoryFilter',
+        'forecastCardFilter',
         'forecastDescriptionFilter',
         'forecastMinValue',
         'forecastMaxValue',
@@ -3224,6 +3353,70 @@ document.addEventListener('DOMContentLoaded', () => {
 // =================================================================================
 // INICIALIZAÇÃO DA APLICAÇÃO
 // =================================================================================
+
+// Função temporária para adicionar dados de teste para previsões
+function adicionarDadosTestePrevioes() {
+    // Adicionar algumas transações previstas para teste
+    const hoje = new Date();
+    const proximaSemana = new Date(hoje.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const proximoMes = new Date(hoje.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    const transacoesTeste = [
+        {
+            id: 'test_prev_1',
+            tipo: 'despesa',
+            descricao: 'Compra Supermercado - Cartão Nubank',
+            valorPrevisto: 350.00,
+            dataPrevista: formatarDataBR(proximaSemana),
+            categoria: 'Alimentação',
+            cartaoId: cartoes.find(c => c.nome === 'Nubank')?.id || null,
+            status: 'previsto'
+        },
+        {
+            id: 'test_prev_2',
+            tipo: 'despesa',
+            descricao: 'Conta de Luz - Sem Cartão',
+            valorPrevisto: 180.00,
+            dataPrevista: formatarDataBR(proximaSemana),
+            categoria: 'Moradia',
+            cartaoId: null,
+            status: 'previsto'
+        },
+        {
+            id: 'test_prev_3',
+            tipo: 'receita',
+            descricao: 'Freelance - Entrada',
+            valorPrevisto: 1200.00,
+            dataPrevista: formatarDataBR(proximoMes),
+            categoria: 'Freelance',
+            cartaoId: null,
+            status: 'previsto'
+        },
+        {
+            id: 'test_prev_4',
+            tipo: 'despesa',
+            descricao: 'Combustível - Cartão Caixa',
+            valorPrevisto: 120.00,
+            dataPrevista: formatarDataBR(proximaSemana),
+            categoria: 'Transporte',
+            cartaoId: cartoes.find(c => c.nome === 'Caixa Econômica Federal')?.id || null,
+            status: 'previsto'
+        }
+    ];
+    
+    // Adicionar apenas se ainda não existem
+    transacoesTeste.forEach(teste => {
+        if (!transacoes.find(t => t.id === teste.id)) {
+            console.log('Adicionando transação de teste:', teste.descricao, 'cartaoId:', teste.cartaoId);
+            transacoes.push(teste);
+        }
+    });
+    
+    // Salvar no localStorage
+    saveDataToLocalStorage();
+    console.log('📝 Dados de teste para previsões adicionados');
+    console.log('🃏 Cartões disponíveis:', cartoes.map(c => ({nome: c.nome, id: c.id})));
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const today = new Date().toISOString().split('T')[0];
@@ -3557,3 +3750,112 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // A chamada inicial para updateUI() será feita após a conexão com o banco de dados ou carregamento do localStorage
 });
+
+// =================================================================================
+// FUNÇÃO DE DEBUG PARA FILTRO DE CARTÕES
+// =================================================================================
+
+window.debugFiltroCartao = function() {
+    console.log('🚀 INICIANDO DEBUG COMPLETO DO FILTRO DE CARTÃO');
+    
+    // Log dos cartões disponíveis
+    console.log('📋 CARTÕES DISPONÍVEIS:', cartoes.map(c => ({
+        id: c.id,
+        nome: c.nome,
+        tipo: typeof c.id,
+        idOriginal: c.id
+    })));
+    
+    // Log das transações previstas
+    const transacoesPrevistas = transacoes.filter(t => t.status === 'previsto');
+    console.log('💰 TODAS AS TRANSAÇÕES PREVISTAS:', transacoesPrevistas.length);
+    console.log('💳 TRANSAÇÕES PREVISTAS COM CARTÃO:', transacoesPrevistas.filter(t => t.cartaoId).map(t => ({
+        id: t.id,
+        descricao: t.descricao,
+        cartaoId: t.cartaoId,
+        cartaoIdTipo: typeof t.cartaoId,
+        valor: t.valorPrevisto,
+        data: t.dataPrevista
+    })));
+    
+    // Verificar o valor atual do filtro
+    const cardFilter = document.getElementById('forecastCardFilter');
+    if (cardFilter) {
+        console.log('🎯 ESTADO ATUAL DO FILTRO:', {
+            value: cardFilter.value,
+            type: typeof cardFilter.value,
+            selectedOption: cardFilter.selectedOptions[0]?.textContent,
+            options: Array.from(cardFilter.options).map(opt => ({
+                value: opt.value,
+                text: opt.textContent,
+                valueType: typeof opt.value
+            }))
+        });
+        
+        // Testar filtro atual manualmente
+        if (cardFilter.value && cardFilter.value !== 'all' && cardFilter.value !== 'no-card') {
+            console.log('\n🧪 TESTANDO FILTRO ATUAL:');
+            const cardFilterId = parseFloat(cardFilter.value);
+            const resultados = transacoesPrevistas.filter(t => {
+                if (!t.cartaoId) return false;
+                const transactionCardId = parseFloat(t.cartaoId);
+                const match = transactionCardId === cardFilterId;
+                
+                console.log(`   ${match ? '✅' : '❌'} ${t.descricao}: ${t.cartaoId} === ${cardFilterId} ? ${match}`);
+                return match;
+            });
+            
+            console.log(`📊 RESULTADO FILTRO ATUAL: ${resultados.length} transações encontradas`);
+            console.log('Transações:', resultados.map(t => ({ descricao: t.descricao, valor: t.valorPrevisto })));
+        }
+    }
+    
+    // Simular filtro para cada cartão
+    cartoes.forEach(cartao => {
+        console.log(`\n🔍 SIMULANDO FILTRO PARA: ${cartao.nome} (ID: ${cartao.id})`);
+        
+        const cardFilterId = parseFloat(cartao.id);
+        const transacoesFiltradas = transacoesPrevistas.filter(t => {
+            if (!t.cartaoId) return false;
+            const transactionCardId = parseFloat(t.cartaoId);
+            return transactionCardId === cardFilterId;
+        });
+        
+        console.log(`📊 RESULTADO SIMULAÇÃO:`, {
+            cartaoId: cartao.id,
+            transacoesEncontradas: transacoesFiltradas.length,
+            transacoes: transacoesFiltradas.map(t => ({
+                descricao: t.descricao,
+                valor: t.valorPrevisto,
+                cartaoId: t.cartaoId
+            }))
+        });
+    });
+    
+    // Verificar integridade dos dados
+    console.log('\n🔬 VERIFICAÇÃO DE INTEGRIDADE:');
+    const cartoesIds = cartoes.map(c => c.id);
+    const cartaoIdsNasTransacoes = [...new Set(transacoesPrevistas.filter(t => t.cartaoId).map(t => t.cartaoId))];
+    
+    console.log('IDs de cartões cadastrados:', cartoesIds);
+    console.log('IDs de cartões em transações:', cartaoIdsNasTransacoes);
+    
+    const idsOrfaos = cartaoIdsNasTransacoes.filter(id => {
+        return !cartoesIds.some(cartaoId => parseFloat(cartaoId) === parseFloat(id));
+    });
+    
+    if (idsOrfaos.length > 0) {
+        console.warn('⚠️ TRANSAÇÕES COM CARTÕES INEXISTENTES:', idsOrfaos);
+    }
+};
+
+// Adicionar botão de debug apenas em localhost
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    setTimeout(() => {
+        const debugBtn = document.createElement('button');
+        debugBtn.textContent = '🐛 Debug Filtro Cartão';
+        debugBtn.className = 'fixed top-4 right-4 bg-red-500 text-white px-3 py-1 rounded text-sm z-50';
+        debugBtn.onclick = window.debugFiltroCartao;
+        document.body.appendChild(debugBtn);
+    }, 1000);
+}
