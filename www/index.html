@@ -5,7 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planilha de Controle Financeiro</title>
     <!-- Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b'
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="style.css">
     <script>
         try {
@@ -267,8 +279,23 @@
                     
                     <div id="parcelamentoFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
                         <div>
-                            <label for="numParcelas" class="block text-sm font-medium text-gray-700">Nº de Parcelas</label>
+                            <label for="dataCompra" class="block text-sm font-medium text-gray-700">Data da Compra</label>
+                            <input type="date" id="dataCompra" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <p class="text-xs text-gray-500 mt-1">Data em que a compra foi realizada</p>
+                        </div>
+                        <div>
+                            <label for="numParcelas" class="block text-sm font-medium text-gray-700">Nº de Parcelas Totais</label>
                             <input type="number" id="numParcelas" placeholder="Ex: 10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="parcelasRestantes" class="block text-sm font-medium text-gray-700">Parcelas Restantes</label>
+                            <input type="number" id="parcelasRestantes" placeholder="Ex: 8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <p class="text-xs text-gray-500 mt-1">Quantas parcelas ainda faltam pagar</p>
+                        </div>
+                        <div>
+                            <label for="primeiroVencimento" class="block text-sm font-medium text-gray-700">Primeira Parcela</label>
+                            <input type="date" id="primeiroVencimento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" readonly>
+                            <p class="text-xs text-gray-500 mt-1">Calculado automaticamente baseado no cartão</p>
                         </div>
                     </div>
                     <div id="recorrenteFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
@@ -869,6 +896,41 @@
                     </div>
                 </h2>
 
+                <!-- Filtros de Período -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <div>
+                            <label for="cartoesFiltroMes" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Período:</label>
+                            <select id="cartoesFiltroMes" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                                <option value="atual">Mês Atual</option>
+                                <option value="proximo">Próximo Mês</option>
+                                <option value="todos">Todos os Períodos</option>
+                                <option value="custom">Período Personalizado</option>
+                            </select>
+                        </div>
+                        
+                        <div id="cartoesCustomDateFilters" class="hidden flex gap-4">
+                            <div>
+                                <label for="cartoesDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início:</label>
+                                <input type="date" id="cartoesDataInicio" class="rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                            <div>
+                                <label for="cartoesDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim:</label>
+                                <input type="date" id="cartoesDataFim" class="rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button id="aplicarFiltroCartoes" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                Aplicar Filtro
+                            </button>
+                            <button id="limparFiltroCartoes" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Resumo Geral dos Cartões -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <div class="bg-blue-100 p-4 rounded-xl text-center">
@@ -1255,6 +1317,22 @@
                             Excluir Definitivamente
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes do Cartão -->
+    <div id="detalhesCartaoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-4 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">Detalhes do Cartão</h3>
+                    <button onclick="document.getElementById('detalhesCartaoModal').style.display='none'" 
+                            class="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+                </div>
+                <div id="detalhesCartaoContent" class="max-h-96 overflow-y-auto">
+                    <!-- Conteúdo será inserido aqui pelo JavaScript -->
                 </div>
             </div>
         </div>

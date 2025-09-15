@@ -13,6 +13,11 @@ const recorrenteFields = document.getElementById('recorrenteFields');
 const tipoSelect = document.getElementById('tipo');
 const marcarPagoForm = document.getElementById('marcarPagoForm');
 const transacoesTableBody = document.getElementById('transacoesTableBody');
+
+// Novos elementos para parcelamento melhorado
+const dataCompraEl = document.getElementById('dataCompra');
+const parcelasRestantesEl = document.getElementById('parcelasRestantes');
+const primeiroVencimentoEl = document.getElementById('primeiroVencimento');
 const summaryByDescriptionBody = document.getElementById('summaryByDescriptionBody'); // Novo
 const despesasVencerTableBody = document.getElementById('despesasVencerTableBody');
 const receitasReceberTableBody = document.getElementById('receitasReceberTableBody');
@@ -70,8 +75,13 @@ const totalPagoRealizadoEl = document.getElementById('totalPagoRealizado');
 // --- Estado do Aplicativo ---
 let transacoes = [];
 let categoriasSalvas = new Set();
-let db; // Referência para o banco de dados SQLite
-let isMobile = false;
+
+// --- Filtros de Cartões ---
+let filtroCartoesAtivo = {
+    periodo: 'atual',
+    dataInicio: null,
+    dataFim: null
+};
 
 // =================================================================================
 // SISTEMA DE GESTÃO DE CARTÕES DE CRÉDITO
@@ -107,9 +117,21 @@ function inicializarCartoesPadrao() {
 
 // Calcular limite usado de um cartão
 function calcularLimiteUsado(cartaoId) {
-    return transacoes
-        .filter(t => t.cartaoId === cartaoId && t.status === 'previsto' && t.tipo === 'despesa')
-        .reduce((total, t) => total + Math.abs(t.valor), 0);
+    const transacoesCartao = transacoes.filter(t => t.cartaoId == cartaoId && t.tipo === 'despesa');
+    
+    let limiteUsado = 0;
+    
+    transacoesCartao.forEach(t => {
+        if (t.status === 'realizado' && t.valor) {
+            // Transações já pagas
+            limiteUsado += Math.abs(t.valor);
+        } else if (t.status === 'previsto' && t.valorPrevisto) {
+            // Transações previstas (parcelamentos, etc)
+            limiteUsado += Math.abs(t.valorPrevisto);
+        }
+    });
+    
+    return limiteUsado;
 }
 
 // Atualizar limite disponível dos cartões
@@ -155,11 +177,403 @@ function atualizarOpcoesCartoes() {
     });
 }
 
+// =================================================================================
+// CÁLCULO DE DATAS DE VENCIMENTO PARA CARTÕES
+// =================================================================================
+
+// Função para formatar data no padrão brasileiro (dd/MM/yyyy)
+function formatarDataBR(data) {
+    if (!data) return '';
+    
+    // Se é uma string ISO, converte para Date
+    if (typeof data === 'string') {
+        data = new Date(data + 'T12:00:00');
+    }
+    
+    const dia = String(data.getDate()).padStart(2, '0');
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const ano = data.getFullYear();
+    
+    return `${dia}/${mes}/${ano}`;
+}
+
+// Função para converter data brasileira para formato ISO (yyyy-MM-dd)
+function dataParaISO(dataBR) {
+    if (!dataBR) return '';
+    
+    // Se já está no formato ISO, retorna como está
+    if (dataBR.includes('-')) return dataBR;
+    
+    // Converte dd/MM/yyyy para yyyy-MM-dd
+    const [dia, mes, ano] = dataBR.split('/');
+    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+}
+
+// Função para calcular o próximo vencimento do cartão baseado na data da compra
+function calcularProximoVencimento(dataCompra, diaVencimento) {
+    // Converte data brasileira para ISO se necessário
+    const dataISO = dataParaISO(dataCompra);
+    const compra = new Date(dataISO + 'T12:00:00');
+    const diaCompra = compra.getDate();
+    const anoCompra = compra.getFullYear();
+    const mesCompra = compra.getMonth(); // 0-11
+    
+    // Data de vencimento deste mês
+    const vencimentoEsteMes = new Date(anoCompra, mesCompra, diaVencimento);
+    // Data limite para incluir neste mês (vencimento - 4 dias)
+    const limitePraEsteMes = new Date(anoCompra, mesCompra, diaVencimento - 4);
+    
+    let proximoVencimento;
+    
+    // Se a data da compra for <= (vencimento - 4 dias) E ainda não passou do vencimento deste mês
+    if (compra <= limitePraEsteMes && compra <= vencimentoEsteMes) {
+        // Vencimento ainda neste mês
+        proximoVencimento = vencimentoEsteMes;
+    } else {
+        // Vencimento no próximo mês
+        proximoVencimento = new Date(anoCompra, mesCompra + 1, diaVencimento);
+    }
+    
+    return formatarDataBR(proximoVencimento);
+}
+
+// Função para calcular datas de todas as parcelas
+function calcularDatasParcelasCartao(dataCompra, cartaoId, numParcelas) {
+    const cartao = obterCartaoPorId(cartaoId);
+    if (!cartao) return [];
+    
+    // Converte data do input (ISO) para formato brasileiro para o cálculo
+    const dataBR = formatarDataBR(new Date(dataCompra + 'T12:00:00'));
+    const primeiroVencimento = calcularProximoVencimento(dataBR, cartao.diaVencimento);
+    const datas = [];
+    
+    // Converte o primeiro vencimento (formato brasileiro) para Date
+    const dataISO = dataParaISO(primeiroVencimento);
+    
+    for (let i = 0; i < numParcelas; i++) {
+        const dataVencimento = new Date(dataISO + 'T12:00:00');
+        dataVencimento.setMonth(dataVencimento.getMonth() + i);
+        datas.push(formatarDataBR(dataVencimento));
+    }
+    
+    return datas;
+}
+
+// Atualizar campo de primeiro vencimento quando cartão ou data da compra mudarem
+function atualizarPrimeiroVencimento() {
+    if (!dataCompraEl || !cartaoCreditoSelect || !primeiroVencimentoEl) return;
+    
+    const dataCompra = dataCompraEl.value; // formato ISO do input
+    const cartaoId = cartaoCreditoSelect.value;
+    
+    if (dataCompra && cartaoId) {
+        const cartao = obterCartaoPorId(cartaoId);
+        if (cartao) {
+            // Converte data ISO para formato brasileiro para o cálculo
+            const dataBR = formatarDataBR(new Date(dataCompra + 'T12:00:00'));
+            const proximoVencimento = calcularProximoVencimento(dataBR, cartao.diaVencimento);
+            // Converte de volta para formato ISO para o input
+            const proximoVencimentoISO = dataParaISO(proximoVencimento);
+            primeiroVencimentoEl.value = proximoVencimentoISO;
+        }
+    } else {
+        primeiroVencimentoEl.value = '';
+    }
+}
+
+// Função para atualizar data de vencimento em transações simples
+function atualizarDataVencimentoSimples() {
+    const cartaoId = cartaoCreditoSelect ? cartaoCreditoSelect.value : null;
+    const dataAtual = document.getElementById('data').value; // formato ISO do input
+    const tipoAtual = tipoSelect.value;
+    
+    if (cartaoId && tipoAtual === 'despesa' && dataAtual) {
+        const cartao = obterCartaoPorId(cartaoId);
+        if (cartao) {
+            // Converte data ISO para formato brasileiro temporariamente para o cálculo
+            const dataBR = formatarDataBR(new Date(dataAtual + 'T12:00:00'));
+            const proximoVencimento = calcularProximoVencimento(dataBR, cartao.diaVencimento);
+            // Converte de volta para formato ISO para o input
+            const proximoVencimentoISO = dataParaISO(proximoVencimento);
+            document.getElementById('data').value = proximoVencimentoISO;
+        }
+    }
+}
+
 // Renderizar cartões na tela de gestão
+// Obter datas do filtro de cartões
+function getDateRangeCartoes() {
+    const hoje = new Date();
+    let dataInicio, dataFim;
+    
+    switch (filtroCartoesAtivo.periodo) {
+        case 'atual':
+            dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            break;
+        case 'proximo':
+            dataInicio = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+            dataFim = new Date(hoje.getFullYear(), hoje.getMonth() + 2, 0);
+            break;
+        case 'custom':
+            if (filtroCartoesAtivo.dataInicio && filtroCartoesAtivo.dataFim) {
+                dataInicio = new Date(filtroCartoesAtivo.dataInicio + 'T00:00:00');
+                dataFim = new Date(filtroCartoesAtivo.dataFim + 'T23:59:59');
+            } else {
+                return null;
+            }
+            break;
+        default: // 'todos'
+            return null;
+    }
+    
+    return { dataInicio, dataFim };
+}
+
+// Filtrar transações por período
+function filtrarTransacoesPorPeriodo(transacoes, dateRange) {
+    if (!dateRange) return transacoes;
+    
+    return transacoes.filter(t => {
+        const dataTransacao = t.dataPrevista || t.data;
+        if (!dataTransacao) return false;
+        
+        const data = new Date(dataParaISO(dataTransacao) + 'T12:00:00');
+        return data >= dateRange.dataInicio && data <= dateRange.dataFim;
+    });
+}
+
+// Criar resumo geral dos cartões
+function criarResumoGeralCartoes() {
+    if (cartoes.length === 0) {
+        return '<div class="bg-gray-100 p-4 rounded-lg mb-6"><p class="text-gray-600">Nenhum cartão cadastrado ainda.</p></div>';
+    }
+    
+    const dateRange = getDateRangeCartoes();
+    const periodoTexto = getPeriodoTexto();
+    
+    let limiteTotal = 0;
+    let limiteUsadoTotal = 0;
+    let totalAPagarPeriodo = 0;
+    let proximosVencimentos = [];
+    
+    cartoes.forEach(cartao => {
+        limiteTotal += cartao.limite;
+        limiteUsadoTotal += calcularLimiteUsado(cartao.id);
+        
+        // Obter transações do período
+        const todasTransacoes = obterTransacoesCartao(cartao.id, 'previsto');
+        const transacoesFiltradas = filtrarTransacoesPorPeriodo(todasTransacoes, dateRange);
+        
+        const totalCartao = transacoesFiltradas.reduce((sum, t) => sum + Math.abs(t.valorPrevisto || 0), 0);
+        totalAPagarPeriodo += totalCartao;
+        
+        if (totalCartao > 0 && dateRange) {
+            // Calcular próximo vencimento no período
+            const proximoVencimento = calcularProximoVencimentoPeriodo(cartao, dateRange);
+            if (proximoVencimento) {
+                proximosVencimentos.push({
+                    cartao: cartao.nome,
+                    data: proximoVencimento,
+                    valor: totalCartao
+                });
+            }
+        }
+    });
+    
+    const disponivelTotal = limiteTotal - limiteUsadoTotal;
+    const percentualUsoGeral = limiteTotal > 0 ? (limiteUsadoTotal / limiteTotal) * 100 : 0;
+    
+    // Ordenar vencimentos por data
+    proximosVencimentos.sort((a, b) => a.data - b.data);
+    
+    let vencimentosHTML = '';
+    if (proximosVencimentos.length > 0) {
+        vencimentosHTML = proximosVencimentos
+            .slice(0, 5) // Mostrar até 5 vencimentos
+            .map(v => `
+                <div class="flex justify-between text-sm">
+                    <span>${v.cartao} - ${formatarDataBR(v.data)}</span>
+                    <span class="font-semibold">${formatCurrency(v.valor)}</span>
+                </div>
+            `).join('');
+    } else {
+        vencimentosHTML = `<p class="text-sm text-gray-500">Nenhuma fatura ${dateRange ? 'no período selecionado' : 'pendente'}</p>`;
+    }
+    
+    return `
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">📊 Resumo Geral dos Cartões ${periodoTexto}</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="bg-white p-4 rounded-lg border">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Limite Total</h3>
+                    <p class="text-2xl font-bold text-blue-600">${formatCurrency(limiteTotal)}</p>
+                    <p class="text-sm text-gray-500">Usado: ${formatCurrency(limiteUsadoTotal)} (${percentualUsoGeral.toFixed(1)}%)</p>
+                </div>
+                
+                <div class="bg-white p-4 rounded-lg border">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Disponível</h3>
+                    <p class="text-2xl font-bold ${disponivelTotal >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(disponivelTotal)}</p>
+                    <p class="text-sm text-gray-500">${cartoes.length} cartão(ões) ativo(s)</p>
+                </div>
+                
+                <div class="bg-white p-4 rounded-lg border">
+                    <h3 class="text-sm font-medium text-gray-600 mb-1">Total ${getPeriodoTextoSimples()}</h3>
+                    <p class="text-2xl font-bold text-orange-600">${formatCurrency(totalAPagarPeriodo)}</p>
+                    <p class="text-sm text-gray-500">A pagar nas faturas</p>
+                </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-lg border">
+                <h3 class="text-sm font-medium text-gray-600 mb-2">🗓️ Vencimentos ${getPeriodoTextoSimples()}</h3>
+                ${vencimentosHTML}
+            </div>
+        </div>
+    `;
+}
+
+// Obter texto do período
+function getPeriodoTexto() {
+    switch (filtroCartoesAtivo.periodo) {
+        case 'atual': return '(Mês Atual)';
+        case 'proximo': return '(Próximo Mês)';
+        case 'custom': return `(${formatarDataBR(new Date(filtroCartoesAtivo.dataInicio))} a ${formatarDataBR(new Date(filtroCartoesAtivo.dataFim))})`;
+        default: return '(Todos os Períodos)';
+    }
+}
+
+function getPeriodoTextoSimples() {
+    switch (filtroCartoesAtivo.periodo) {
+        case 'atual': return 'Este Mês';
+        case 'proximo': return 'Próximo Mês';
+        case 'custom': return 'no Período';
+        default: return 'Total';
+    }
+}
+
+// Aplicar filtro de cartões
+function aplicarFiltroCartoes() {
+    const periodo = document.getElementById('cartoesFiltroMes').value;
+    const dataInicio = document.getElementById('cartoesDataInicio').value;
+    const dataFim = document.getElementById('cartoesDataFim').value;
+    
+    // Validar datas customizadas
+    if (periodo === 'custom') {
+        if (!dataInicio || !dataFim) {
+            alert('Por favor, selecione as datas de início e fim para o período customizado.');
+            return;
+        }
+        if (new Date(dataInicio) > new Date(dataFim)) {
+            alert('A data de início deve ser anterior à data de fim.');
+            return;
+        }
+    }
+    
+    // Atualizar filtro ativo
+    filtroCartoesAtivo = {
+        periodo: periodo,
+        dataInicio: dataInicio,
+        dataFim: dataFim
+    };
+    
+    // Atualizar display
+    atualizarDisplayCartoes();
+    
+    // Feedback visual
+    const btn = document.getElementById('aplicarFiltroCartoes');
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Aplicado ✓';
+    btn.className = btn.className.replace('bg-blue-600 hover:bg-blue-700', 'bg-green-500');
+    
+    setTimeout(() => {
+        btn.textContent = textoOriginal;
+        btn.className = btn.className.replace('bg-green-500', 'bg-blue-600 hover:bg-blue-700');
+    }, 1500);
+}
+
+// Limpar filtro de cartões
+function limparFiltroCartoes() {
+    filtroCartoesAtivo = {
+        periodo: 'todos',
+        dataInicio: '',
+        dataFim: ''
+    };
+    
+    // Resetar controles
+    document.getElementById('cartoesFiltroMes').value = 'todos';
+    document.getElementById('cartoesDataInicio').value = '';
+    document.getElementById('cartoesDataFim').value = '';
+    
+    // Atualizar display
+    atualizarDisplayCartoes();
+    
+    // Feedback visual
+    const btn = document.getElementById('limparFiltroCartoes');
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Limpo ✓';
+    btn.className = btn.className.replace('bg-gray-500 hover:bg-gray-600', 'bg-green-500');
+    
+    setTimeout(() => {
+        btn.textContent = textoOriginal;
+        btn.className = btn.className.replace('bg-green-500', 'bg-gray-500 hover:bg-gray-600');
+    }, 1500);
+}
+
+// Atualizar display dos cartões
+function atualizarDisplayCartoes() {
+    renderizarCartoes();
+}
+
+// Calcular próximo vencimento no período
+function calcularProximoVencimentoPeriodo(cartao, dateRange) {
+    const hoje = new Date();
+    let vencimento = new Date(hoje.getFullYear(), hoje.getMonth(), cartao.diaVencimento);
+    
+    // Se o vencimento deste mês já passou, vai para o próximo
+    if (vencimento <= hoje) {
+        vencimento.setMonth(vencimento.getMonth() + 1);
+    }
+    
+    // Verificar se está no período
+    if (vencimento >= dateRange.dataInicio && vencimento <= dateRange.dataFim) {
+        return vencimento;
+    }
+    
+    // Tentar próximo mês
+    vencimento.setMonth(vencimento.getMonth() + 1);
+    if (vencimento >= dateRange.dataInicio && vencimento <= dateRange.dataFim) {
+        return vencimento;
+    }
+    
+    return null;
+}
+
+// Controlar visibilidade das datas customizadas
+function controlarDatasPeriodoCartoes() {
+    const periodo = document.getElementById('cartoesFiltroMes');
+    const containerDatas = document.getElementById('cartoesCustomDateFilters');
+    
+    if (periodo && containerDatas) {
+        if (periodo.value === 'custom') {
+            containerDatas.classList.remove('hidden');
+        } else {
+            containerDatas.classList.add('hidden');
+            // Limpar valores quando não é custom
+            const dataInicio = document.getElementById('cartoesDataInicio');
+            const dataFim = document.getElementById('cartoesDataFim');
+            if (dataInicio) dataInicio.value = '';
+            if (dataFim) dataFim.value = '';
+        }
+    }
+}
+
 function renderizarCartoes() {
     if (!cartoesContainer) return;
     
-    cartoesContainer.innerHTML = '';
+    // Criar resumo geral primeiro
+    const resumoGeral = criarResumoGeralCartoes();
+    cartoesContainer.innerHTML = resumoGeral;
     
     cartoes.forEach(cartao => {
         const limiteUsado = calcularLimiteUsado(cartao.id);
@@ -232,45 +646,178 @@ function atualizarResumoCartoes() {
 }
 
 // Ver detalhes de um cartão específico
+// Ver detalhes do cartão
 function verDetalhesCartao(cartaoId) {
     const cartao = obterCartaoPorId(cartaoId);
     if (!cartao) return;
     
-    const transacoes = obterTransacoesCartao(cartaoId, 'previsto');
+    const dateRange = getDateRangeCartoes();
+    const periodoTexto = getPeriodoTexto();
     
-    let detalhesHTML = `
-        <h3 class="text-lg font-semibold mb-4">Detalhes: ${cartao.nome}</h3>
-        <div class="space-y-2">
-    `;
+    // Obter todas as transações do cartão
+    const todasTransacoes = obterTransacoesCartao(cartaoId, 'previsto');
     
-    if (transacoes.length === 0) {
-        detalhesHTML += '<p class="text-gray-500">Nenhuma transação pendente neste cartão.</p>';
-    } else {
-        transacoes.forEach(t => {
-            detalhesHTML += `
-                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
-                    <div>
-                        <span class="font-medium">${t.descricao}</span>
-                        <br><small class="text-gray-600">${formatDateToBrazil(t.data)} • ${t.categoria}</small>
+    // Aplicar filtro de período
+    const transacoesFiltradas = filtrarTransacoesPorPeriodo(todasTransacoes, dateRange);
+    
+    // Calcular resumo financeiro
+    const limiteUsado = calcularLimiteUsado(cartaoId);
+    const limiteDisponivel = cartao.limite - limiteUsado;
+    const percentualUso = cartao.limite > 0 ? (limiteUsado / cartao.limite) * 100 : 0;
+    
+    // Calcular totais do período
+    const totalPeriodo = transacoesFiltradas.reduce((sum, t) => sum + Math.abs(t.valorPrevisto || 0), 0);
+    const numTransacoesPeriodo = transacoesFiltradas.length;
+    
+    // Agrupar por categoria
+    const porCategoria = {};
+    transacoesFiltradas.forEach(t => {
+        const categoria = t.categoria || 'Sem categoria';
+        porCategoria[categoria] = (porCategoria[categoria] || 0) + Math.abs(t.valorPrevisto || 0);
+    });
+    
+    // Criar lista de transações
+    let transacoesHTML = '';
+    if (transacoesFiltradas.length > 0) {
+        // Ordenar por data mais recente
+        const transacoesOrdenadas = transacoesFiltradas
+            .sort((a, b) => new Date(dataParaISO(b.dataPrevista)) - new Date(dataParaISO(a.dataPrevista)));
+        
+        transacoesHTML = transacoesOrdenadas
+            .map(t => `
+                <div class="bg-gray-50 p-3 rounded border-l-4 border-blue-400 mb-2">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <p class="font-medium text-gray-800">${t.descricao}</p>
+                            <p class="text-sm text-gray-600">
+                                📅 ${formatarDataBR(new Date(dataParaISO(t.dataPrevista)))}
+                                ${t.categoria ? ` • 🏷️ ${t.categoria}` : ''}
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-red-600">${formatCurrency(Math.abs(t.valorPrevisto || 0))}</p>
+                            ${t.parcelas && t.parcelas > 1 ? `<p class="text-xs text-gray-500">${t.parcelaAtual || 1}/${t.parcelas}x</p>` : ''}
+                        </div>
                     </div>
-                    <span class="font-semibold text-red-600">${formatCurrency(Math.abs(t.valor))}</span>
                 </div>
-            `;
-        });
+            `).join('');
+    } else {
+        transacoesHTML = `<p class="text-gray-600 text-center py-4">Nenhuma transação encontrada ${dateRange ? 'no período selecionado' : ''}</p>`;
     }
     
-    detalhesHTML += '</div>';
+    // Criar breakdown por categoria
+    let categoriasHTML = '';
+    if (Object.keys(porCategoria).length > 0) {
+        const categoriasOrdenadas = Object.entries(porCategoria)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5); // Top 5 categorias
+        
+        categoriasHTML = categoriasOrdenadas
+            .map(([categoria, valor]) => `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">${categoria}</span>
+                    <span class="font-semibold">${formatCurrency(valor)}</span>
+                </div>
+            `).join('');
+    } else {
+        categoriasHTML = '<p class="text-sm text-gray-500">Nenhuma categoria para mostrar</p>';
+    }
     
-    // Mostrar em um alert simples (pode ser melhorado com modal)
-    const detalhesWindow = window.open('', '_blank', 'width=400,height=600');
-    detalhesWindow.document.write(`
-        <html>
-            <head><title>Detalhes do Cartão</title></head>
-            <body style="font-family: Arial, sans-serif; padding: 20px;">
-                ${detalhesHTML}
-            </body>
-        </html>
-    `);
+    // Calcular próximo vencimento no período
+    let proximoVencimentoHTML = '';
+    if (dateRange) {
+        const proximoVenc = calcularProximoVencimentoPeriodo(cartao, dateRange);
+        if (proximoVenc && totalPeriodo > 0) {
+            proximoVencimentoHTML = `
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                    <h4 class="font-medium text-orange-800 mb-1">📅 Vencimento no Período</h4>
+                    <p class="text-sm text-orange-700">${formatarDataBR(proximoVenc)} - ${formatCurrency(totalPeriodo)}</p>
+                </div>
+            `;
+        }
+    }
+    
+    document.getElementById('detalhesCartaoContent').innerHTML = `
+        <div class="max-w-4xl mx-auto">
+            <div class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-6 rounded-lg mb-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold">${cartao.nome}</h2>
+                        <p class="text-blue-100">Vencimento todo dia ${cartao.diaVencimento}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-blue-100">Limite Total</p>
+                        <p class="text-2xl font-bold">${formatCurrency(cartao.limite)}</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                        <p class="text-sm text-blue-100">Limite Usado</p>
+                        <p class="text-lg font-bold">${formatCurrency(limiteUsado)}</p>
+                        <p class="text-xs text-blue-200">${percentualUso.toFixed(1)}% do limite</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                        <p class="text-sm text-blue-100">Disponível</p>
+                        <p class="text-lg font-bold ${limiteDisponivel >= 0 ? 'text-green-200' : 'text-red-200'}">${formatCurrency(limiteDisponivel)}</p>
+                        <p class="text-xs text-blue-200">${(100 - percentualUso).toFixed(1)}% restante</p>
+                    </div>
+                    <div class="bg-white bg-opacity-20 rounded-lg p-3">
+                        <p class="text-sm text-blue-100">Total ${getPeriodoTextoSimples()}</p>
+                        <p class="text-lg font-bold text-yellow-200">${formatCurrency(totalPeriodo)}</p>
+                        <p class="text-xs text-blue-200">${numTransacoesPeriodo} transação(ões)</p>
+                    </div>
+                </div>
+            </div>
+            
+            ${proximoVencimentoHTML}
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-lg border p-4">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">💳 Transações ${periodoTexto}</h3>
+                        <div class="max-h-96 overflow-y-auto">
+                            ${transacoesHTML}
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="bg-white rounded-lg border p-4 mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 mb-3">📊 Por Categoria ${getPeriodoTextoSimples()}</h3>
+                        <div class="space-y-2">
+                            ${categoriasHTML}
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg border p-4">
+                        <h3 class="text-lg font-bold text-gray-800 mb-3">📈 Análise do Limite</h3>
+                        <div class="space-y-2">
+                            <div class="w-full bg-gray-200 rounded-full h-3">
+                                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-300" 
+                                     style="width: ${Math.min(percentualUso, 100)}%"></div>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                <p>${percentualUso.toFixed(1)}% utilizado</p>
+                                <p class="${percentualUso > 80 ? 'text-red-600 font-semibold' : percentualUso > 60 ? 'text-yellow-600' : 'text-green-600'}">
+                                    ${percentualUso > 80 ? '⚠️ Atenção: Limite alto!' : percentualUso > 60 ? '⚡ Uso moderado' : '✅ Uso controlado'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-center mt-6">
+                <button onclick="document.getElementById('detalhesCartaoModal').style.display='none'" 
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('detalhesCartaoModal').style.display = 'block';
 }
 
 // Função temporária para editar cartão (pode ser expandida)
@@ -408,14 +955,9 @@ function abrirModalExclusaoCartao(cartao) {
 
 // Função unificada para salvar dados
 function salvarDados() {
-    console.log('salvarDados chamada. isMobile:', isMobile);
-    if (isMobile) {
-        // Em mobile, os dados são salvos automaticamente no SQLite
-        atualizarLimitesCartoes();
-    } else {
-        saveDataToLocalStorage();
-        atualizarLimitesCartoes();
-    }
+    console.log('salvarDados chamada');
+    saveDataToLocalStorage();
+    atualizarLimitesCartoes();
 }
 
 // --- Funções para LocalStorage (fallback para navegador) ---
@@ -450,55 +992,32 @@ function loadDataFromLocalStorage() {
 // INICIALIZAÇÃO E BANCO DE DADOS (SQLite com Capacitor)
 // =================================================================================
 
-document.addEventListener('deviceready', onDeviceReady, false);
-
-async function onDeviceReady() {
-    isMobile = true;
-    try {
-        const { CapacitorSQLite, SQLiteConnection } = window.CapacitorCommunitySqlite;
-        const sqlite = new SQLiteConnection(CapacitorSQLite);
-        db = await sqlite.createConnection('contabilDB', false, 'no-encryption', 1);
-        await db.open();
-        await setupDatabase();
-        await loadDataFromDB();
-        updateUI();
-        showMessage('Banco de dados conectado!', 2000);
-    } catch (e) {
-        console.error("Erro ao inicializar o banco de dados", e);
-        showMessage('Erro ao conectar ao DB.', 5000);
+// Inicialização simples para navegador
+document.addEventListener('DOMContentLoaded', function() {
+    loadDataFromLocalStorage();
+    updateUI();
+    showMessage('Sistema carregado!', 2000);
+    
+    // Configurar filtros de cartões
+    const filtroPeriodo = document.getElementById('cartoesFiltroMes');
+    if (filtroPeriodo) {
+        filtroPeriodo.addEventListener('change', controlarDatasPeriodoCartoes);
     }
-}
+    
+    const btnAplicar = document.getElementById('aplicarFiltroCartoes');
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', aplicarFiltroCartoes);
+    }
+    
+    const btnLimpar = document.getElementById('limparFiltroCartoes');
+    if (btnLimpar) {
+        btnLimpar.addEventListener('click', limparFiltroCartoes);
+    }
+    
+    // Controlar visibilidade inicial das datas
+    setTimeout(() => controlarDatasPeriodoCartoes(), 100);
+});
 
-async function setupDatabase() {
-    const createTransacoesTable = `
-        CREATE TABLE IF NOT EXISTS transacoes (
-            id TEXT PRIMARY KEY,
-            descricao TEXT,
-            valor REAL,
-            data TEXT,
-            tipo TEXT,
-            categoria TEXT,
-            status TEXT,
-            valorPrevisto REAL,
-            dataPrevista TEXT
-        );
-    `;
-    const createCategoriasTable = `
-        CREATE TABLE IF NOT EXISTS categorias (
-            nome TEXT PRIMARY KEY
-        );
-    `;
-    await db.execute(createTransacoesTable);
-    await db.execute(createCategoriasTable);
-}
-
-async function loadDataFromDB() {
-    const transacoesResult = await db.query('SELECT * FROM transacoes');
-    transacoes = transacoesResult.values || [];
-
-    const categoriasResult = await db.query('SELECT * FROM categorias');
-    categoriasSalvas = new Set((categoriasResult.values || []).map(c => c.nome));
-}
 
 // =================================================================================
 // NAVEGAÇÃO
@@ -541,6 +1060,11 @@ function formatCurrency(value) {
 
 function formatDateToBrazil(dateString) {
     if (!dateString) return '';
+    
+    // Se já está no formato brasileiro (dd/MM/yyyy), retorna como está
+    if (dateString.includes('/')) return dateString;
+    
+    // Se está no formato ISO (yyyy-MM-dd), converte para brasileiro
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}/${year}`;
 }
@@ -1102,22 +1626,10 @@ function renderCategoryManager() {
 
 window.deleteTransacao = async function(id) {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
-    if (isMobile) {
-        try {
-            await db.run('DELETE FROM transacoes WHERE id = ?', [id]);
-            transacoes = transacoes.filter(t => t.id !== id);
-            updateUI();
-            showMessage('Transação excluída com sucesso.');
-        } catch (e) {
-            console.error("Erro ao excluir transação:", e);
-            showMessage('Erro ao excluir transação.');
-        }
-    } else {
-        transacoes = transacoes.filter(t => t.id !== id);
-        saveDataToLocalStorage();
-        updateUI();
-        showMessage('Transação excluída com sucesso.');
-    }
+    transacoes = transacoes.filter(t => t.id !== id);
+    saveDataToLocalStorage();
+    updateUI();
+    showMessage('Transação excluída com sucesso.');
 };
 
 // NOVO: Editar Categoria
@@ -1125,59 +1637,33 @@ window.editCategoria = async function(oldName) {
     const newName = prompt('Digite o novo nome para a categoria:', oldName);
     if (!newName || newName.trim() === '' || newName === oldName) return;
 
-    if (isMobile) {
-        try {
-            await db.run('UPDATE categorias SET nome = ? WHERE nome = ?', [newName, oldName]);
-            await db.run('UPDATE transacoes SET categoria = ? WHERE categoria = ?', [newName, oldName]);
-            await loadDataFromDB(); // Recarrega tudo para garantir consistência
-            updateUI();
-            showMessage('Categoria atualizada com sucesso.');
-        } catch (e) {
-            console.error("Erro ao editar categoria:", e);
-            showMessage('Erro ao editar categoria.');
+    // Atualiza no set de categorias
+    categoriasSalvas.delete(oldName);
+    categoriasSalvas.add(newName);
+    // Atualiza em todas as transações
+    transacoes.forEach(t => {
+        if (t.categoria === oldName) {
+            t.categoria = newName;
         }
-    } else {
-        // Atualiza no set de categorias
-        categoriasSalvas.delete(oldName);
-        categoriasSalvas.add(newName);
-        // Atualiza em todas as transações
-        transacoes.forEach(t => {
-            if (t.categoria === oldName) {
-                t.categoria = newName;
-            }
-        });
-        saveDataToLocalStorage();
-        updateUI();
-        showMessage('Categoria atualizada com sucesso.');
-    }
+    });
+    saveDataToLocalStorage();
+    updateUI();
+    showMessage('Categoria atualizada com sucesso.');
 };
 
 // NOVO: Deletar Categoria
 window.deleteCategoria = async function(name) {
     if (!confirm(`Tem certeza que deseja excluir a categoria "${name}"? Isso removerá a categoria de todas as transações associadas.`)) return;
 
-    if (isMobile) {
-        try {
-            await db.run('DELETE FROM categorias WHERE nome = ?', [name]);
-            await db.run('UPDATE transacoes SET categoria = "" WHERE categoria = ?', [name]);
-            await loadDataFromDB();
-            updateUI();
-            showMessage('Categoria excluída.');
-        } catch (e) {
-            console.error("Erro ao excluir categoria:", e);
-            showMessage('Erro ao excluir categoria.');
+    categoriasSalvas.delete(name);
+    transacoes.forEach(t => {
+        if (t.categoria === name) {
+            t.categoria = ''; // Remove a categoria da transação
         }
-    } else {
-        categoriasSalvas.delete(name);
-        transacoes.forEach(t => {
-            if (t.categoria === name) {
-                t.categoria = ''; // Remove a categoria da transação
-            }
-        });
-        saveDataToLocalStorage();
-        updateUI();
-        showMessage('Categoria excluída.');
-    }
+    });
+    saveDataToLocalStorage();
+    updateUI();
+    showMessage('Categoria excluída.');
 };
 
 
@@ -1225,115 +1711,98 @@ transacaoForm.addEventListener('submit', async function(event) {
     let newTransactions = [];
 
     try {
-        if (isMobile) {
-            if (isParcelada) {
-                const numParcelas = parseInt(document.getElementById('numParcelas').value, 10);
-                const valorParcela = -(valorInicial / numParcelas);
-                for (let i = 0; i < numParcelas; i++) {
-                    const dataParcela = new Date(dataInicial + 'T12:00:00');
-                    dataParcela.setMonth(dataParcela.getMonth() + i);
-                    newTransactions.push({
-                        id: `${Date.now()}-${i}`,
-                        dataPrevista: dataParcela.toISOString().split('T')[0],
-                        descricao: `${descricao} (${i + 1}/${numParcelas})`,
-                        status: 'previsto', tipo: 'despesa', categoria,
-                        valorPrevisto: valorParcela, valor: null, data: null,
-                        cartaoId: cartaoId
-                    });
-                }
-            } else if (isRecorrente) {
-                const numRepeticoes = parseInt(document.getElementById('numRepeticoes').value, 10);
-                const valorRecorrente = tipo === 'despesa' ? -valorInicial : valorInicial;
-                for (let i = 0; i < numRepeticoes; i++) {
-                    const dataPrevista = new Date(dataInicial + 'T12:00:00');
-                    dataPrevista.setMonth(dataPrevista.getMonth() + i);
-                    newTransactions.push({
-                        id: `${Date.now()}-${i}`,
-                        dataPrevista: dataPrevista.toISOString().split('T')[0],
-                        descricao: `${descricao} (Recorrente)`,
-                        status: 'previsto', tipo, categoria,
-                        valorPrevisto: valorRecorrente, valor: null, data: null,
-                        cartaoId: cartaoId
-                    });
-                }
-            } else {
-                newTransactions.push({
-                    id: `${Date.now()}`,
-                    data: dataInicial, descricao, status: 'realizado', tipo, categoria,
-                    valor: tipo === 'despesa' ? -valorInicial : valorInicial,
-                    valorPrevisto: null, dataPrevista: null,
+        // Lógica simplificada (apenas navegador)
+        if (isParcelada) {
+            // Nova lógica para compras parceladas já adquiridas
+            const dataCompra = dataCompraEl.value || dataInicial;
+            const numParcelasTotal = parseInt(document.getElementById('numParcelas').value, 10);
+            const parcelasRestantes = parseInt(parcelasRestantesEl.value, 10) || numParcelasTotal;
+            const valorParcela = -(valorInicial / numParcelasTotal);
+            
+            if (!cartaoId) {
+                showMessage('❌ Selecione um cartão para compras parceladas!', 'error');
+                return;
+            }
+            
+            // Calcular datas das parcelas baseadas no vencimento do cartão
+            const datasVencimento = calcularDatasParcelasCartao(dataCompra, cartaoId, parcelasRestantes);
+            const parcelaInicial = numParcelasTotal - parcelasRestantes + 1;
+            
+            for (let i = 0; i < parcelasRestantes; i++) {
+                transacoes.push({
+                    id: `${Date.now()}-${i}`,
+                    dataPrevista: datasVencimento[i],
+                    descricao: `${descricao} (${parcelaInicial + i}/${numParcelasTotal})`,
+                    status: 'previsto', 
+                    tipo: 'despesa', 
+                    categoria,
+                    valorPrevisto: valorParcela, 
+                    valor: null, 
+                    data: null,
+                    cartaoId: cartaoId,
+                    dataCompra: dataCompra,
+                    parcelaNumero: parcelaInicial + i,
+                    parcelasTotal: numParcelasTotal
+                });
+            }
+        } else if (isRecorrente) {
+            const numRepeticoes = parseInt(document.getElementById('numRepeticoes').value, 10);
+            const valorRecorrente = tipo === 'despesa' ? -valorInicial : valorInicial;
+            for (let i = 0; i < numRepeticoes; i++) {
+                const dataPrevista = new Date(dataInicial + 'T12:00:00');
+                dataPrevista.setMonth(dataPrevista.getMonth() + i);
+                transacoes.push({
+                    id: `${Date.now()}-${i}`,
+                    dataPrevista: dataPrevista.toISOString().split('T')[0],
+                    descricao: `${descricao} (Recorrente)`,
+                    status: 'previsto', tipo, categoria,
+                    valorPrevisto: valorRecorrente, valor: null, data: null,
                     cartaoId: cartaoId
                 });
             }
-
-            // Salvar no DB
-            for (const t of newTransactions) {
-                await db.run(
-                    'INSERT INTO transacoes (id, descricao, valor, data, tipo, categoria, status, valorPrevisto, dataPrevista) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [t.id, t.descricao, t.valor, t.data, t.tipo, t.categoria, t.status, t.valorPrevisto, t.dataPrevista]
-                );
-                transacoes.push(t);
-            }
-
-            if (categoria && !categoriasSalvas.has(categoria)) {
-                await db.run('INSERT INTO categorias (nome) VALUES (?)', [categoria]);
-                categoriasSalvas.add(categoria);
-            }
-            
-            updateUI();
-            transacaoForm.reset();
-            document.getElementById('data').value = new Date().toISOString().split('T')[0];
-            updateVisibilityBasedOnType();
-            showMessage('Transação(ões) adicionada(s) com sucesso!');
-
         } else {
-            // --- Lógica para navegador ---
-            if (isParcelada) {
-                const numParcelas = parseInt(document.getElementById('numParcelas').value, 10);
-                const valorParcela = -(valorInicial / numParcelas);
-                for (let i = 0; i < numParcelas; i++) {
-                    const dataParcela = new Date(dataInicial + 'T12:00:00');
-                    dataParcela.setMonth(dataParcela.getMonth() + i);
-                    transacoes.push({
-                        id: `${Date.now()}-${i}`,
-                        dataPrevista: dataParcela.toISOString().split('T')[0],
-                        descricao: `${descricao} (${i + 1}/${numParcelas})`,
-                        status: 'previsto', tipo: 'despesa', categoria,
-                        valorPrevisto: valorParcela, valor: null, data: null
-                    });
-                }
-            } else if (isRecorrente) {
-                const numRepeticoes = parseInt(document.getElementById('numRepeticoes').value, 10);
-                const valorRecorrente = tipo === 'despesa' ? -valorInicial : valorInicial;
-                for (let i = 0; i < numRepeticoes; i++) {
-                    const dataPrevista = new Date(dataInicial + 'T12:00:00');
-                    dataPrevista.setMonth(dataPrevista.getMonth() + i);
-                    transacoes.push({
-                        id: `${Date.now()}-${i}`,
-                        dataPrevista: dataPrevista.toISOString().split('T')[0],
-                        descricao: `${descricao} (Recorrente)`,
-                        status: 'previsto', tipo, categoria,
-                        valorPrevisto: valorRecorrente, valor: null, data: null
-                    });
-                }
-            } else {
+            // Transação simples
+            if (cartaoId && tipo === 'despesa') {
+                // Compra no cartão: usar data de vencimento
+                const proximoVencimento = calcularProximoVencimento(dataInicial, obterCartaoPorId(cartaoId).diaVencimento);
                 transacoes.push({
                     id: `${Date.now()}`,
-                    data: dataInicial, descricao, status: 'realizado', tipo, categoria,
+                    dataPrevista: proximoVencimento,
+                    descricao, 
+                    status: 'previsto', 
+                    tipo, 
+                    categoria,
+                    valorPrevisto: -valorInicial,
+                    valor: null, 
+                    data: null,
+                    cartaoId: cartaoId,
+                    dataCompra: dataInicial
+                });
+            } else {
+                // Transação normal (receita ou despesa sem cartão)
+                transacoes.push({
+                    id: `${Date.now()}`,
+                    data: dataInicial, 
+                    descricao, 
+                    status: 'realizado', 
+                    tipo, 
+                    categoria,
                     valor: tipo === 'despesa' ? -valorInicial : valorInicial,
-                    valorPrevisto: null, dataPrevista: null
+                    valorPrevisto: null, 
+                    dataPrevista: null,
+                    cartaoId: cartaoId
                 });
             }
-            if (categoria && !categoriasSalvas.has(categoria)) {
-                categoriasSalvas.add(categoria);
-            }
-            saveDataToLocalStorage();
-            updateUI();
-            transacaoForm.reset();
-            document.getElementById('data').value = new Date().toISOString().split('T')[0];
-            updateVisibilityBasedOnType();
-            showMessage('Transação(ões) adicionada(s) com sucesso!');
         }
+        if (categoria && !categoriasSalvas.has(categoria)) {
+            categoriasSalvas.add(categoria);
+        }
+        saveDataToLocalStorage();
+        updateUI();
+        transacaoForm.reset();
+        document.getElementById('data').value = new Date().toISOString().split('T')[0];
+        updateVisibilityBasedOnType();
+        showMessage('Transação(ões) adicionada(s) com sucesso!');
     } catch (e) {
         console.error("Erro ao adicionar transação: ", e);
         showMessage('Erro ao salvar transação.');
@@ -1359,55 +1828,26 @@ editTransacaoForm.addEventListener('submit', async function(event) {
 
     const isRealizado = originalTransacao.status === 'realizado';
 
-    if (isMobile) {
-        try {
-            if (isRealizado) {
-                await db.run(
-                    'UPDATE transacoes SET tipo = ?, valor = ?, descricao = ?, data = ?, categoria = ? WHERE id = ?',
-                    [tipo, valor, descricao, data, categoria, id]
-                );
-            } else { // é 'previsto'
-                await db.run(
-                    'UPDATE transacoes SET tipo = ?, valorPrevisto = ?, descricao = ?, dataPrevista = ?, categoria = ? WHERE id = ?',
-                    [tipo, valor, descricao, data, categoria, id]
-                );
-            }
-            
-            if (categoria && !categoriasSalvas.has(categoria)) {
-                await db.run('INSERT INTO categorias (nome) VALUES (?)', [categoria]);
-            }
-            
-            await loadDataFromDB(); // Recarrega para garantir consistência
-            updateUI();
-            editTransacaoModal.classList.add('hidden');
-            showMessage('Transação atualizada com sucesso!');
-
-        } catch (e) {
-            console.error("Erro ao atualizar transação:", e);
-            showMessage('Erro ao atualizar transação.');
+    const index = transacoes.findIndex(t => t.id === id);
+    if (index > -1) {
+        const updatedTransacao = { ...transacoes[index], tipo, descricao, categoria };
+        if (isRealizado) {
+            updatedTransacao.valor = valor;
+            updatedTransacao.data = data;
+        } else {
+            updatedTransacao.valorPrevisto = valor;
+            updatedTransacao.dataPrevista = data;
         }
-    } else {
-        const index = transacoes.findIndex(t => t.id === id);
-        if (index > -1) {
-            const updatedTransacao = { ...transacoes[index], tipo, descricao, categoria };
-            if (isRealizado) {
-                updatedTransacao.valor = valor;
-                updatedTransacao.data = data;
-            } else {
-                updatedTransacao.valorPrevisto = valor;
-                updatedTransacao.dataPrevista = data;
-            }
-            transacoes[index] = updatedTransacao;
+        transacoes[index] = updatedTransacao;
 
-            if (categoria && !categoriasSalvas.has(categoria)) {
-                categoriasSalvas.add(categoria);
-            }
-            
-            saveDataToLocalStorage();
-            updateUI();
-            editTransacaoModal.classList.add('hidden');
-            showMessage('Transação atualizada com sucesso!');
+        if (categoria && !categoriasSalvas.has(categoria)) {
+            categoriasSalvas.add(categoria);
         }
+        
+        saveDataToLocalStorage();
+        updateUI();
+        editTransacaoModal.classList.add('hidden');
+        showMessage('Transação atualizada com sucesso!');
     }
 });
 
@@ -1419,32 +1859,14 @@ marcarPagoForm.addEventListener('submit', async function(event) {
     const dataPagamento = document.getElementById('dataPagamento').value;
     let valorPago = parseFloat(document.getElementById('valorPago').value);
     if (tipo === 'despesa' && valorPago > 0) valorPago = -valorPago;
-    if (isMobile) {
-        try {
-            await db.run(
-                'UPDATE transacoes SET status = ?, valor = ?, data = ?, valorPrevisto = NULL, dataPrevista = NULL WHERE id = ?',
-                ['realizado', valorPago, dataPagamento, id]
-            );
-            const index = transacoes.findIndex(t => t.id === id);
-            if (index > -1) {
-                transacoes[index] = { ...transacoes[index], status: 'realizado', valor: valorPago, data: dataPagamento, valorPrevisto: null, dataPrevista: null };
-            }
-            updateUI();
-            marcarPagoModal.classList.add('hidden');
-            showMessage('Transação atualizada com sucesso!');
-        } catch (e) {
-            console.error("Erro ao marcar transação:", e);
-            showMessage('Erro ao atualizar transação.');
-        }
-    } else {
-        const index = transacoes.findIndex(t => t.id === id);
-        if (index > -1) {
-            transacoes[index] = { ...transacoes[index], status: 'realizado', valor: valorPago, data: dataPagamento, valorPrevisto: null, dataPrevista: null };
-            saveDataToLocalStorage();
-            updateUI();
-            marcarPagoModal.classList.add('hidden');
-            showMessage('Transação atualizada com sucesso!');
-        }
+    
+    const index = transacoes.findIndex(t => t.id === id);
+    if (index > -1) {
+        transacoes[index] = { ...transacoes[index], status: 'realizado', valor: valorPago, data: dataPagamento, valorPrevisto: null, dataPrevista: null };
+        saveDataToLocalStorage();
+        updateUI();
+        marcarPagoModal.classList.add('hidden');
+        showMessage('Transação atualizada com sucesso!');
     }
 });
 
@@ -1457,25 +1879,22 @@ deleteForm.addEventListener('submit', async function(event) {
         showMessage('Insira ao menos um critério para exclusão.');
         return;
     }
-    if (isMobile) {
-        // ...existing code para SQLite...
+    
+    const initialCount = transacoes.length;
+    transacoes = transacoes.filter(t => {
+        const dataTransacao = t.data || t.dataPrevista;
+        const matchesDesc = descricao ? t.descricao.includes(descricao) : true;
+        const matchesDate = (!dataInicio || dataTransacao >= dataInicio) && (!dataFim || dataTransacao <= dataFim);
+        return !(matchesDesc && matchesDate);
+    });
+    const numDeleted = initialCount - transacoes.length;
+    if (numDeleted > 0) {
+        saveDataToLocalStorage();
+        updateUI();
+        showMessage(`${numDeleted} transação(ões) excluída(s).`);
+        this.reset();
     } else {
-        const initialCount = transacoes.length;
-        transacoes = transacoes.filter(t => {
-            const dataTransacao = t.data || t.dataPrevista;
-            const matchesDesc = descricao ? t.descricao.includes(descricao) : true;
-            const matchesDate = (!dataInicio || dataTransacao >= dataInicio) && (!dataFim || dataTransacao <= dataFim);
-            return !(matchesDesc && matchesDate);
-        });
-        const numDeleted = initialCount - transacoes.length;
-        if (numDeleted > 0) {
-            saveDataToLocalStorage();
-            updateUI();
-            showMessage(`${numDeleted} transação(ões) excluída(s).`);
-            this.reset();
-        } else {
-            showMessage('Nenhuma transação encontrada com os critérios especificados.');
-        }
+        showMessage('Nenhuma transação encontrada com os critérios especificados.');
     }
 });
 
@@ -1486,6 +1905,29 @@ deleteForm.addEventListener('submit', async function(event) {
 tipoSelect.addEventListener('change', updateVisibilityBasedOnType);
 isParceladaCheckbox.addEventListener('change', () => parcelamentoFields.classList.toggle('hidden', !isParceladaCheckbox.checked));
 isRecorrenteCheckbox.addEventListener('change', () => recorrenteFields.classList.toggle('hidden', !isRecorrenteCheckbox.checked));
+
+// Event listeners para os novos campos de parcelamento
+if (dataCompraEl) {
+    dataCompraEl.addEventListener('change', atualizarPrimeiroVencimento);
+}
+if (cartaoCreditoSelect) {
+    cartaoCreditoSelect.addEventListener('change', atualizarPrimeiroVencimento);
+    // Adicionar listener para atualizar data em transações simples
+    cartaoCreditoSelect.addEventListener('change', atualizarDataVencimentoSimples);
+}
+
+// Listener para atualizar data quando a data for alterada em transações com cartão
+document.getElementById('data').addEventListener('change', atualizarDataVencimentoSimples);
+tipoSelect.addEventListener('change', atualizarDataVencimentoSimples);
+if (parcelasRestantesEl && document.getElementById('numParcelas')) {
+    // Auto-preencher parcelas restantes quando numParcelas mudar
+    document.getElementById('numParcelas').addEventListener('input', (e) => {
+        if (!parcelasRestantesEl.value) {
+            parcelasRestantesEl.value = e.target.value;
+        }
+    });
+}
+
 document.getElementById('cancelMarcarPago').addEventListener('click', () => marcarPagoModal.classList.add('hidden'));
 cancelEditTransacao.addEventListener('click', () => editTransacaoModal.classList.add('hidden')); // Novo
 
@@ -2788,14 +3230,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('data').value = today;
     previsaoDataEl.value = today;
     
-    // Se não estiver em um dispositivo (ou seja, no navegador), inicializa assim mesmo
-    if (typeof window.CapacitorCommunitySqlite === 'undefined') {
-        isMobile = false;
-        loadDataFromLocalStorage();
-        updateUI();
-    } else {
-        // Para mobile, a UI é atualizada no onDeviceReady
-    }
     updateVisibilityBasedOnType();
     
     // Event listeners para a página de gráficos
@@ -2873,19 +3307,11 @@ document.addEventListener('DOMContentLoaded', () => {
             cartoes = [];
             categoriasSalvas = new Set();
 
-            if (isMobile && db) {
-                // Reset do banco SQLite (mobile)
-                db.execute('DELETE FROM transacoes');
-                db.execute('DELETE FROM cartoes');
-                db.execute('DELETE FROM configuracoes');
-                console.log('Dados do SQLite removidos');
-            } else {
-                // Reset do LocalStorage (navegador)
-                localStorage.removeItem('transacoes');
-                localStorage.removeItem('cartoes');
-                localStorage.removeItem('categorias');
-                console.log('Dados do LocalStorage removidos');
-            }
+            // Reset do LocalStorage (navegador)
+            localStorage.removeItem('transacoes');
+            localStorage.removeItem('cartoes');
+            localStorage.removeItem('categorias');
+            console.log('Dados do LocalStorage removidos');
 
             // Reinicializar cartões padrão
             inicializarCartoesPadrao();
