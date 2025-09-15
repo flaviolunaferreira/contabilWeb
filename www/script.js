@@ -3007,11 +3007,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Configurar eventos do modal de exclusão de cartão
     function configurarModalExclusaoCartao() {
+        console.log('Configurando modal de exclusão de cartão...');
         const modal = document.getElementById('deleteCartaoModal');
         const closeModal = document.getElementById('closeDeleteCartaoModal');
         const confirmCartaoName = document.getElementById('confirmCartaoName');
         const confirmDeleteCartao = document.getElementById('confirmDeleteCartao');
         const cancelDeleteCartao = document.getElementById('cancelDeleteCartao');
+
+        console.log('Elementos do modal encontrados:', {
+            modal: !!modal,
+            closeModal: !!closeModal,
+            confirmCartaoName: !!confirmCartaoName,
+            confirmDeleteCartao: !!confirmDeleteCartao,
+            cancelDeleteCartao: !!cancelDeleteCartao
+        });
+
+        if (!modal || !closeModal || !confirmCartaoName || !confirmDeleteCartao || !cancelDeleteCartao) {
+            console.error('Alguns elementos do modal não foram encontrados!');
+            return;
+        }
 
         // Fechar modal
         function fecharModal() {
