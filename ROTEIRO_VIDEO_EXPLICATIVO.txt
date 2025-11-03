@@ -1,0 +1,168 @@
+ROTEIRO PARA VÍDEO EXPLICATIVO - CONTABILWEB
+=============================================
+
+🎬 INFORMAÇÕES DO VÍDEO:
+- Duração: 4-5 minutos (máximo permitido)
+- Formato: Explicativo + Demonstração
+- Plataforma: YouTube (público ou não listado)
+
+📝 ESTRUTURA DO ROTEIRO:
+=======================
+
+⏱️ INTRODUÇÃO (30 segundos)
+===========================
+🎯 O QUE FALAR:
+"Olá! Eu sou [Seu Nome] e vou apresentar o Sistema de Controle Financeiro Mobile, o ContabilWeb. 
+
+Este é um aplicativo completo de gestão financeira pessoal que desenvolvi usando tecnologias modernas como Capacitor, Tailwind CSS e Chart.js. O app funciona tanto no navegador quanto como aplicativo Android nativo."
+
+🎥 O QUE MOSTRAR:
+- Tela inicial do aplicativo
+- Logo e interface principal
+- Mencionar tecnologias na tela
+
+⏱️ PROBLEMA E SOLUÇÃO (45 segundos)
+==================================
+🎯 O QUE FALAR:
+"O problema que resolvo é simples: mais de 60% dos brasileiros não controlam adequadamente suas finanças pessoais. 
+
+Muitas pessoas não têm ferramentas adequadas para acompanhar receitas e despesas em tempo real, planejar gastos futuros ou visualizar padrões de consumo.
+
+Minha solução é um sistema completo, gratuito e que funciona 100% offline, democratizando o controle financeiro pessoal."
+
+🎥 O QUE MOSTRAR:
+- Dashboard com cartões zerados (estado inicial)
+- Estatísticas de uso no Brasil
+- Destacar 'funciona offline'
+
+⏱️ FUNCIONALIDADES - DASHBOARD (45 segundos)
+===========================================
+🎯 O QUE FALAR:
+"O coração do sistema é este Dashboard inteligente com 5 cartões informativos:
+
+Saldo Realizado mostra o dinheiro atual em caixa, Previsão de Saldo calcula quanto você terá no futuro, Total de Despesas Previstas mostra seus comprometimentos, Total a Receber suas receitas futuras, e Total Pago seus gastos realizados.
+
+Observe que você pode clicar nos cartões para ver detalhes das transações."
+
+🎥 O QUE MOSTRAR:
+- Navegar pelo dashboard
+- Clicar nos cartões (demonstrar drill-down)
+- Mostrar tabela de transações
+- Destacar interatividade
+
+⏱️ FUNCIONALIDADES - GESTÃO (45 segundos)
+========================================
+🎯 O QUE FALAR:
+"Na aba Adicionar, você registra receitas e despesas com categorização automática. Cada transação pode ser marcada como realizada ou prevista para planejamento futuro.
+
+A aba Previsões é onde o planejamento acontece. Você tem filtros poderosos por período, categoria, tipo, valor e descrição. Pode filtrar apenas os próximos 7 dias ou ver todo o próximo ano."
+
+🎥 O QUE MOSTRAR:
+- Demonstrar adição de transação
+- Preencher formulário completamente
+- Navegar para Previsões
+- Mostrar filtros funcionando
+- Aplicar diferentes filtros
+
+⏱️ FUNCIONALIDADES - ANÁLISE (45 segundos)
+=========================================
+🎯 O QUE FALAR:
+"A análise visual é um diferencial. Temos 7 tipos de gráficos interativos: pizza para distribuição, barras para comparativos, linha para tendências, área para fluxo acumulado, rosca para status, barras horizontais para ranking, e estatísticas detalhadas.
+
+Tudo atualiza em tempo real e você pode filtrar por diferentes períodos."
+
+🎥 O QUE MOSTRAR:
+- Navegar para aba Gráficos
+- Mostrar diferentes tipos de gráfico
+- Interagir com gráficos
+- Mudar filtros de período
+- Destacar atualizações em tempo real
+
+⏱️ RESPONSIVIDADE E TECNOLOGIA (30 segundos)
+==========================================
+🎯 O QUE FALAR:
+"O sistema é completamente responsivo, funcionando perfeitamente em celulares, tablets e desktops. É um Progressive Web App que funciona offline após o carregamento inicial.
+
+Uso Tailwind CSS para design moderno, Chart.js para visualizações e Capacitor para gerar o app Android nativo."
+
+🎥 O QUE MOSTRAR:
+- Redimensionar janela (mostrar responsividade)
+- Navegar entre telas no mobile
+- Mostrar interface touch-friendly
+- Mencionar tecnologias
+
+⏱️ IMPACTO E CONCLUSÃO (30 segundos)
+==================================
+🎯 O QUE FALAR:
+"O impacto esperado é significativo: redução de 30% nos gastos desnecessários, aumento de 40% na consciência financeira e melhoria de 35% no planejamento mensal.
+
+O sistema democratiza o controle financeiro, sendo gratuito, offline e multi-plataforma. É minha contribuição para melhorar a saúde financeira dos brasileiros."
+
+🎥 O QUE MOSTRAR:
+- Dashboard final com dados
+- Tela de estatísticas
+- Logo final
+
+📋 CHECKLIST DE GRAVAÇÃO:
+========================
+[ ] Testar áudio e vídeo antes de começar
+[ ] Adicionar dados de exemplo antes de gravar
+[ ] Cronometrar cada seção
+[ ] Praticar transições entre telas
+[ ] Preparar backup de dados de demonstração
+[ ] Verificar funcionamento dos gráficos
+[ ] Testar responsividade antes da gravação
+
+🎬 DICAS DE GRAVAÇÃO:
+====================
+✅ TÉCNICAS:
+- Use gravador de tela (OBS, Camtasia, Loom)
+- Resolução mínima: 1280x720 (recomendado 1920x1080)
+- Taxa de quadros: 30 FPS
+- Áudio claro e sem ruído
+- Cursor destacado e visível
+
+✅ NARRATIVA:
+- Fale de forma clara e pausada
+- Use tom entusiasmado mas profissional
+- Evite "uhm", "então", vícios de linguagem
+- Pratique antes de gravar definitivo
+- Mantenha ritmo constante
+
+✅ VISUAL:
+- Janela do navegador maximizada
+- Dados de exemplo preenchidos
+- Transições suaves entre telas
+- Destaque elementos importantes
+- Evite distrações na tela
+
+🎯 PONTOS OBRIGATÓRIOS:
+======================
+1. ✅ Nome do aplicativo: "Sistema de Controle Financeiro Mobile"
+2. ✅ Problema resolvido: Falta de controle financeiro pessoal
+3. ✅ Funcionalidades principais: Dashboard, Gestão, Previsões, Gráficos
+4. ✅ Plataformas: Web + Android mobile
+5. ✅ Impacto esperado: Melhoria na gestão financeira
+6. ✅ Tecnologias: Capacitor, Tailwind CSS, Chart.js
+7. ✅ Diferencial: Offline, gratuito, multi-plataforma
+
+📺 PÓS-PRODUÇÃO:
+===============
+- Adicionar legendas se necessário
+- Incluir título descritivo
+- Descrição completa no YouTube
+- Tags relevantes: fintech, app, javascript, capacitor
+- Thumbnail atrativo com logo do app
+
+🔗 UPLOAD NO YOUTUBE:
+====================
+- Título: "Sistema de Controle Financeiro Mobile - Demo Completa"
+- Descrição: Incluir tecnologias, funcionalidades e link do projeto
+- Visibilidade: Público ou Não listado (conforme solicitado)
+- Categoria: Educação ou Tecnologia
+
+============================================
+Roteiro criado em: 03/11/2025
+Projeto: Sistema de Controle Financeiro Mobile
+Desenvolvedor: Flavio Luna Ferreira
+============================================

@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilha de Controle Financeiro</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b'
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        try {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'sans-serif'],
+                        },
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao carregar a configuração do Tailwind:', e);
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans pb-20">
+
+    <main id="app-content" class="p-4">
+        <!-- Botões de Ajuda e Configurações -->
+        <div class="fixed top-4 right-4 z-50 flex flex-col gap-2">
+            <button id="generalHelpBtn" class="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-colors duration-200">
+                <span class="text-xl font-bold">?</span>
+            </button>
+            <button id="configBtn" class="bg-gray-600 hover:bg-gray-700 text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg transition-colors duration-200">
+                <span class="text-xl font-bold">⚙</span>
+            </button>
+        </div>
+
+        <!-- Tela de Início (Dashboard) -->
+        <section id="page-home" class="page active">
+            <header class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Dashboard
+                    <div class="help-tooltip inline-block">
+                        <span class="help-icon">?</span>
+                        <span class="tooltip-text">
+                            <strong>Dashboard Financeiro</strong><br>
+                            Esta tela mostra um resumo da sua situação financeira atual. Veja saldo realizado, previsões, despesas e receitas de forma rápida e intuitiva.
+                        </span>
+                    </div>
+                </h1>
+                <p class="text-md text-gray-600 mt-1">Sua saúde financeira em um relance.</p>
+            </header>
+
+            <!-- Main Dashboard Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-6 w-full">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 text-center">
+                    <div class="bg-blue-500 text-white p-4 rounded-xl shadow-md help-tooltip">
+                        <p class="text-sm">Saldo Realizado (Hoje)</p>
+                        <p id="saldoRealizado" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                        <span class="tooltip-text">
+                            <strong>Saldo Realizado</strong><br>
+                            Valor atual em caixa, considerando apenas transações já realizadas até hoje. Este é seu dinheiro real disponível.
+                        </span>
+                    </div>
+                    <div class="bg-green-500 text-white p-4 rounded-xl shadow-md help-tooltip">
+                        <p class="text-sm">Previsão de Saldo Total</p>
+                        <p id="saldoFuturo" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                        <span class="tooltip-text">
+                            <strong>Previsão de Saldo</strong><br>
+                            Estimativa de quanto você terá no futuro, considerando todas as receitas e despesas previstas. Útil para planejamento.
+                        </span>
+                    </div>
+                    <div class="bg-red-500 text-white p-4 rounded-xl shadow-md help-tooltip">
+                        <p class="text-sm">Total de Despesas Previstas</p>
+                        <p id="totalDespesasPrevistas" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                        <span class="tooltip-text">
+                            <strong>Despesas Previstas</strong><br>
+                            Soma de todas as despesas que ainda não foram pagas, mas estão programadas. Ajuda a visualizar comprometimentos futuros.
+                        </span>
+                    </div>
+                    <div class="bg-emerald-500 text-white p-4 rounded-xl shadow-md help-tooltip">
+                        <p class="text-sm">Total a Receber</p>
+                        <p id="totalAReceber" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                        <span class="tooltip-text">
+                            <strong>Total a Receber</strong><br>
+                            Soma de todas as receitas previstas que ainda não foram recebidas. Representa dinheiro que está por vir.
+                        </span>
+                    </div>
+                    <div class="bg-purple-500 text-white p-4 rounded-xl shadow-md help-tooltip">
+                        <p class="text-sm">Total Pago</p>
+                        <p id="totalPagoRealizado" class="text-2xl font-bold mt-1">R$ 0,00</p>
+                        <span class="tooltip-text">
+                            <strong>Total Pago</strong><br>
+                            Soma de todas as despesas já pagas. Útil para acompanhar quanto já foi gasto no período.
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-4 flex flex-col items-center">
+                    <div class="w-full sm:max-w-xs">
+                        <label for="previsaoData" class="block text-sm font-medium text-gray-700">Prever Saldo para o dia</label>
+                        <input type="date" id="previsaoData" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Resumo por Descrição -->
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Resumo por Descrição</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 0)">
+                                    <div class="flex items-center justify-between">
+                                        Descrição
+                                        <span class="sort-icon ml-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 12l5-5 5 5H5z"></path>
+                                                <path d="M5 8l5 5 5-5H5z"></path>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 1)">
+                                    <div class="flex items-center justify-between">
+                                        Qtd
+                                        <span class="sort-icon ml-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 12l5-5 5 5H5z"></path>
+                                                <path d="M5 8l5 5 5-5H5z"></path>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 2)">
+                                    <div class="flex items-center justify-between">
+                                        Total
+                                        <span class="sort-icon ml-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 12l5-5 5 5H5z"></path>
+                                                <path d="M5 8l5 5 5-5H5z"></path>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 3)">
+                                    <div class="flex items-center justify-between">
+                                        Pago/Recebido
+                                        <span class="sort-icon ml-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 12l5-5 5 5H5z"></path>
+                                                <path d="M5 8l5 5 5-5H5z"></path>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('summaryByDescriptionBody', 4)">
+                                    <div class="flex items-center justify-between">
+                                        Restante
+                                        <span class="sort-icon ml-2">
+                                            <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M5 12l5-5 5 5H5z"></path>
+                                                <path d="M5 8l5 5 5-5H5z"></path>
+                                            </svg>
+                                        </span>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryByDescriptionBody" class="divide-y divide-gray-200">
+                            <!-- Linhas de resumo serão inseridas aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Adicionar Transação -->
+        <section id="page-add" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Adicionar Transação
+                    <div class="help-tooltip inline-block">
+                        <span class="help-icon">?</span>
+                        <span class="tooltip-text">
+                            <strong>Formulário de Transações</strong><br>
+                            Use esta tela para registrar receitas (dinheiro que entra) e despesas (dinheiro que sai). Preencha todos os campos para um controle preciso.
+                        </span>
+                    </div>
+                </h2>
+                <form id="transacaoForm" class="grid grid-cols-1 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="tipo" class="block text-sm font-medium text-gray-700">Tipo
+                                <div class="help-tooltip inline-block">
+                                    <span class="help-icon">?</span>
+                                    <span class="tooltip-text">
+                                        <strong>Tipo da Transação</strong><br>
+                                        <strong>Despesa:</strong> Dinheiro que sai (gastos, contas a pagar)<br>
+                                        <strong>Receita:</strong> Dinheiro que entra (salário, vendas, recebimentos)
+                                    </span>
+                                </div>
+                            </label>
+                            <select id="tipo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                                <option value="despesa">Despesa</option>
+                                <option value="receita">Receita</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="valor" class="block text-sm font-medium text-gray-700">Valor (R$)
+                                <div class="help-tooltip inline-block">
+                                    <span class="help-icon">?</span>
+                                    <span class="tooltip-text">
+                                        <strong>Valor da Transação</strong><br>
+                                        Digite apenas números e vírgulas/pontos decimais. Exemplo: 150.50 para cento e cinquenta reais e cinquenta centavos.
+                                    </span>
+                                </div>
+                            </label>
+                            <input type="number" id="valor" step="0.01" placeholder="Ex: 50.00" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="descricao" class="block text-sm font-medium text-gray-700">Descrição
+                            <div class="help-tooltip inline-block">
+                                <span class="help-icon">?</span>
+                                <span class="tooltip-text">
+                                    <strong>Descrição da Transação</strong><br>
+                                    Seja específico para facilitar a identificação futura. Ex: "Almoço - Restaurante X", "Salário Janeiro", "Conta de Luz".
+                                </span>
+                            </div>
+                        </label>
+                        <input type="text" id="descricao" placeholder="Ex: Almoço, Presente" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                    </div>
+                    <div>
+                        <label for="data" class="block text-sm font-medium text-gray-700">Data</label>
+                        <input type="date" id="data" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                    </div>
+                    <div>
+                        <label for="categoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                        <input type="text" id="categoria" placeholder="Ex: Alimentação, Lazer" list="categorias-list" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
+                        <datalist id="categorias-list"></datalist>
+                    </div>
+                    <div id="cartaoContainer" class="hidden">
+                        <label for="cartaoCredito" class="block text-sm font-medium text-gray-700">Cartão de Crédito
+                            <div class="help-tooltip inline-block">
+                                <span class="help-icon">?</span>
+                                <span class="tooltip-text">
+                                    <strong>Cartão de Crédito</strong><br>
+                                    Selecione o cartão usado para esta despesa. Isso ajuda a controlar limites e faturas por cartão.
+                                </span>
+                            </div>
+                        </label>
+                        <select id="cartaoCredito" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                            <option value="">Selecionar cartão...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div id="isParceladaContainer" class="flex items-center">
+                            <input type="checkbox" id="isParcelada" class="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+                            <label for="isParcelada" class="ml-2 text-gray-700">É parcelada?</label>
+                        </div>
+                        <div id="isRecorrenteContainer" class="flex items-center">
+                            <input type="checkbox" id="isRecorrente" class="h-5 w-5 text-purple-600 rounded border-gray-300 focus:ring-purple-500">
+                            <label for="isRecorrente" class="ml-2 text-gray-700">É recorrente?</label>
+                        </div>
+                    </div>
+                    
+                    <div id="parcelamentoFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label for="dataCompra" class="block text-sm font-medium text-gray-700">Data da Compra</label>
+                            <input type="date" id="dataCompra" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <p class="text-xs text-gray-500 mt-1">Data em que a compra foi realizada</p>
+                        </div>
+                        <div>
+                            <label for="numParcelas" class="block text-sm font-medium text-gray-700">Nº de Parcelas Totais</label>
+                            <input type="number" id="numParcelas" placeholder="Ex: 10" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="parcelasRestantes" class="block text-sm font-medium text-gray-700">Parcelas Restantes</label>
+                            <input type="number" id="parcelasRestantes" placeholder="Ex: 8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <p class="text-xs text-gray-500 mt-1">Quantas parcelas ainda faltam pagar</p>
+                        </div>
+                        <div>
+                            <label for="primeiroVencimento" class="block text-sm font-medium text-gray-700">Primeira Parcela</label>
+                            <input type="date" id="primeiroVencimento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" readonly>
+                            <p class="text-xs text-gray-500 mt-1">Calculado automaticamente baseado no cartão</p>
+                        </div>
+                    </div>
+                    <div id="recorrenteFields" class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label for="numRepeticoes" class="block text-sm font-medium text-gray-700">Nº de Repetições</label>
+                            <input type="number" id="numRepeticoes" placeholder="Ex: 12" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                    </div>
+
+                    <div class="col-span-full mt-4 text-center">
+                        <button type="submit" class="w-full sm:w-auto px-8 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                            Adicionar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Nova Tela de Previsões -->
+        <section id="page-forecasts" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Previsões
+                    <div class="help-tooltip inline-block">
+                        <span class="help-icon">?</span>
+                        <span class="tooltip-text">
+                            <strong>Página de Previsões</strong><br>
+                            Veja todas as transações futuras programadas. Use os filtros para encontrar rapidamente o que procura por período, categoria, cartão, tipo ou valor.
+                        </span>
+                    </div>
+                </h2>
+
+                <!-- Seção de Filtros -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">🔍 Filtros
+                        <div class="help-tooltip inline-block">
+                            <span class="help-icon">?</span>
+                            <span class="tooltip-text">
+                                <strong>Sistema de Filtros</strong><br>
+                                Use os filtros para encontrar transações específicas. Combine múltiplos filtros para buscas mais precisas: período, tipo, categoria, cartão, descrição e valor. Os filtros são aplicados automaticamente quando você faz as seleções. Clique em "Limpar" para remover todos os filtros.
+                            </span>
+                        </div>
+                    </h3>
+                    
+                    <!-- Primeira linha de filtros -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+                        <div>
+                            <label for="forecastPeriodFilter" class="block text-sm font-medium text-gray-700">Período
+                                <div class="help-tooltip inline-block">
+                                    <span class="help-icon">?</span>
+                                    <span class="tooltip-text">
+                                        <strong>Filtro por Período</strong><br>
+                                        Escolha um período predefinido ou personalizado para ver apenas as transações desse intervalo de tempo.
+                                    </span>
+                                </div>
+                            </label>
+                            <select id="forecastPeriodFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="all">Todos os períodos</option>
+                                <option value="7" selected>Próximos 7 dias</option>
+                                <option value="15">Próximos 15 dias</option>
+                                <option value="30">Próximos 30 dias</option>
+                                <option value="60">Próximos 60 dias</option>
+                                <option value="90">Próximos 90 dias</option>
+                                <option value="custom">Período personalizado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="forecastTypeFilter" class="block text-sm font-medium text-gray-700">Tipo</label>
+                            <select id="forecastTypeFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="all">Receitas e Despesas</option>
+                                <option value="receita">Apenas Receitas</option>
+                                <option value="despesa">Apenas Despesas</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="forecastCategoryFilter" class="block text-sm font-medium text-gray-700">Categoria</label>
+                            <select id="forecastCategoryFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="all">Todas as Categorias</option>
+                                <!-- Categorias serão preenchidas dinamicamente -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="forecastCardFilter" class="block text-sm font-medium text-gray-700">Cartão
+                                <div class="help-tooltip inline-block">
+                                    <span class="help-icon">?</span>
+                                    <span class="tooltip-text">
+                                        <strong>Filtro por Cartão</strong><br>
+                                        Filtre apenas as despesas de um cartão de crédito específico. Útil para controlar gastos por cartão.
+                                    </span>
+                                </div>
+                            </label>
+                            <select id="forecastCardFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="all">Todos os Cartões</option>
+                                <option value="no-card">Sem Cartão</option>
+                                <!-- Cartões serão preenchidos dinamicamente -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="forecastDescriptionFilter" class="block text-sm font-medium text-gray-700">Descrição</label>
+                            <input type="text" id="forecastDescriptionFilter" placeholder="Buscar por descrição..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                    </div>
+
+                    <!-- Segunda linha de filtros -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label for="forecastMinValue" class="block text-sm font-medium text-gray-700">Valor Mínimo (R$)</label>
+                            <input type="number" id="forecastMinValue" step="0.01" placeholder="0,00" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="forecastMaxValue" class="block text-sm font-medium text-gray-700">Valor Máximo (R$)</label>
+                            <input type="number" id="forecastMaxValue" step="0.01" placeholder="Sem limite" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="forecastSortBy" class="block text-sm font-medium text-gray-700">Ordenar por</label>
+                            <select id="forecastSortBy" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="date">Data (mais próxima)</option>
+                                <option value="date-desc">Data (mais distante)</option>
+                                <option value="value-asc">Valor (menor)</option>
+                                <option value="value-desc">Valor (maior)</option>
+                                <option value="description">Descrição (A-Z)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Filtros de data personalizada (inicialmente ocultos) -->
+                    <div id="customDateFilters" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="forecastStartDate" class="block text-sm font-medium text-gray-700">Data Início</label>
+                            <input type="date" id="forecastStartDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="forecastEndDate" class="block text-sm font-medium text-gray-700">Data Fim</label>
+                            <input type="date" id="forecastEndDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                    </div>
+
+                    <!-- Botões de ação -->
+                    <div class="flex flex-wrap gap-2">
+                        <button id="debugForecastBtn" class="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors" style="display: none;">
+                            🐛 Debug Transações
+                        </button>
+                        <button id="clearForecastFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                            🗑️ Limpar Filtros
+                        </button>
+                        <button id="toggleFilters" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+                            📋 Ocultar Filtros
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resumo de Pagamentos -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-8">
+                    <div class="bg-green-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Recebido</p>
+                        <p id="totalRecebido" class="text-xl font-bold text-green-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-red-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Pago</p>
+                        <p id="totalPago" class="text-xl font-bold text-red-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Balanço Futuro</p>
+                        <p id="balancoFuturo" class="text-xl font-bold text-blue-700 mt-1">R$ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Tabela de Despesas a Vencer -->
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Despesas</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 0)">
+                                        <div class="flex items-center justify-between">
+                                            Data
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 1)">
+                                        <div class="flex items-center justify-between">
+                                            Descrição
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('despesasVencerTableBody', 2)">
+                                        <div class="flex items-center justify-between">
+                                            Valor
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="despesasVencerTableBody" class="divide-y divide-gray-200">
+                                <!-- Linhas de despesas serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tabela de Receitas a Receber -->
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Próximas Receitas</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 0)">
+                                        <div class="flex items-center justify-between">
+                                            Data
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 1)">
+                                        <div class="flex items-center justify-between">
+                                            Descrição
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('receitasReceberTableBody', 2)">
+                                        <div class="flex items-center justify-between">
+                                            Valor
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receitasReceberTableBody" class="divide-y divide-gray-200">
+                                <!-- Linhas de receitas serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Relatórios -->
+        <section id="page-reports" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Relatórios</h2>
+
+                <!-- Filtros -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 items-end">
+                    <div>
+                        <label for="filtroPeriodo" class="block text-sm font-medium text-gray-700">Período</label>
+                        <select id="filtroPeriodo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <option value="all">Tudo</option>
+                            <option value="monthly" selected>Este Mês</option>
+                            <option value="weekly">Últimos 7 dias</option>
+                            <option value="yearly">Este Ano</option>
+                            <option value="custom">Personalizado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filtroCategoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                        <select id="filtroCategoria" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            <option value="all">Todas as Categorias</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filtroDescricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                        <input type="text" id="filtroDescricao" placeholder="Filtrar por descrição..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                    </div>
+                    <div id="customDateFilters" class="hidden md:col-span-3 grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="dataInicio" class="block text-sm font-medium text-gray-700">Data Início</label>
+                            <input type="date" id="dataInicio" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="dataFim" class="block text-sm font-medium text-gray-700">Data Fim</label>
+                            <input type="date" id="dataFim" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumo do Período Filtrado -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-8">
+                    <div class="bg-green-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Receitas</p>
+                        <p id="totalReceitasPrevistas" class="text-xl font-bold text-green-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-red-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Total Despesas</p>
+                        <p id="totalDespesasPrevistasFiltro" class="text-xl font-bold text-red-700 mt-1">R$ 0,00</p>
+                    </div>
+                    <div class="bg-blue-100 p-4 rounded-xl">
+                        <p class="text-sm text-gray-600">Saldo</p>
+                        <p id="saldoPeriodo" class="text-xl font-bold text-blue-700 mt-1">R$ 0,00</p>
+                    </div>
+                </div>
+
+                <!-- Tabela de Histórico Completo -->
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Histórico de Transações</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 0)">
+                                        <div class="flex items-center justify-between">
+                                            Data
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 1)">
+                                        <div class="flex items-center justify-between">
+                                            Descrição
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 2)">
+                                        <div class="flex items-center justify-between">
+                                            Status
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onclick="sortTable('transacoesTableBody', 3)">
+                                        <div class="flex items-center justify-between">
+                                            Valor
+                                            <span class="sort-icon ml-2">
+                                                <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M5 12l5-5 5 5H5z"></path>
+                                                    <path d="M5 8l5 5 5-5H5z"></path>
+                                                </svg>
+                                            </span>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transacoesTableBody" class="divide-y divide-gray-200">
+                                <!-- Linhas de transações serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Gráficos -->
+        <section id="page-charts" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-gray-700">📊 Análise Visual</h2>
+                    <button id="help-toggle" class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors" title="Mostrar/Ocultar Ajuda">
+                        ❓ Ajuda
+                    </button>
+                </div>
+
+                <!-- Controles de Período -->
+                <div class="mb-6 bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">🗓️ Período de Análise</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="chartPeriod" class="block text-sm font-medium text-gray-700">Período</label>
+                            <select id="chartPeriod" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="30" selected>Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                                <option value="180">Últimos 6 meses</option>
+                                <option value="365">Último ano</option>
+                                <option value="all">Todo o período</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="chartStartDate" class="block text-sm font-medium text-gray-700">Data Início</label>
+                            <input type="date" id="chartStartDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div>
+                            <label for="chartEndDate" class="block text-sm font-medium text-gray-700">Data Fim</label>
+                            <input type="date" id="chartEndDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primeira linha de gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Gráfico de Pizza - Despesas por Categoria -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">🍕 Despesas por Categoria</h3>
+                        <div class="relative h-64">
+                            <canvas id="expensesPieChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Pizza - Receitas por Categoria -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">💰 Receitas por Categoria</h3>
+                        <div class="relative h-64">
+                            <canvas id="incomesPieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Segunda linha de gráficos -->
+                <div class="grid grid-cols-1 gap-6 mb-6">
+                    <!-- Gráfico de Linha - Tendência Temporal -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">📈 Tendência Financeira ao Longo do Tempo</h3>
+                        <div class="relative h-80">
+                            <canvas id="trendsLineChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terceira linha de gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Gráfico de Barras - Comparação Mensal -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">📊 Comparação Mensal</h3>
+                        <div class="relative h-64">
+                            <canvas id="monthlyBarChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Área - Acumulado -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">🌊 Saldo Acumulado</h3>
+                        <div class="relative h-64">
+                            <canvas id="cumulativeAreaChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quarta linha de gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Gráfico de Rosca - Status das Transações -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">⭕ Status das Transações</h3>
+                        <div class="relative h-64">
+                            <canvas id="statusDoughnutChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Barras Horizontais - Top Categorias -->
+                    <div class="bg-white border rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">🏆 Top Categorias por Valor</h3>
+                        <div class="relative h-64">
+                            <canvas id="topCategoriesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estatísticas Resumidas -->
+                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">📋 Resumo Estatístico</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center">
+                            <div id="totalTransactions" class="text-2xl font-bold text-blue-600">-</div>
+                            <div class="text-sm text-gray-600">Total Transações</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="avgTransaction" class="text-2xl font-bold text-green-600">-</div>
+                            <div class="text-sm text-gray-600">Valor Médio</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="maxTransaction" class="text-2xl font-bold text-red-600">-</div>
+                            <div class="text-sm text-gray-600">Maior Transação</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="categoriesCount" class="text-2xl font-bold text-purple-600">-</div>
+                            <div class="text-sm text-gray-600">Categorias Ativas</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão de Atualizar -->
+                <div class="text-center mt-6">
+                    <button id="refreshCharts" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        🔄 Atualizar Gráficos
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Ajustes -->
+        <!-- Tela de Inteligência Financeira -->
+        <section id="page-intelligence" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Inteligência Financeira</h2>
+                
+                <!-- Status Geral do Usuário -->
+                <div class="mb-6">
+                    <div id="financial-status" class="text-center p-4 rounded-xl mb-4">
+                        <h3 id="status-title" class="text-xl font-bold mb-2">Analisando...</h3>
+                        <p id="status-description" class="text-gray-600">Processando seus dados financeiros...</p>
+                    </div>
+                </div>
+
+                <!-- Métricas de Performance -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-blue-700" id="score-curto">-</div>
+                        <div class="text-sm text-gray-600">Score Curto Prazo</div>
+                        <div class="text-xs text-gray-500">(7 dias)</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-green-700" id="score-medio">-</div>
+                        <div class="text-sm text-gray-600">Score Médio Prazo</div>
+                        <div class="text-xs text-gray-500">(30 dias)</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-purple-700" id="score-longo">-</div>
+                        <div class="text-sm text-gray-600">Score Longo Prazo</div>
+                        <div class="text-xs text-gray-500">(90 dias)</div>
+                    </div>
+                </div>
+
+                <!-- Tendências e Padrões -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Análise de Tendências</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">📈 Receitas</h4>
+                            <div id="trend-receitas" class="text-sm text-gray-600">Calculando...</div>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-700 mb-2">📉 Despesas</h4>
+                            <div id="trend-despesas" class="text-sm text-gray-600">Calculando...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conselhos Personalizados -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Conselhos Personalizados</h3>
+                    <div id="advice-container" class="space-y-3">
+                        <!-- Conselhos serão inseridos aqui -->
+                    </div>
+                </div>
+
+                <!-- Alertas e Avisos -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Alertas Importantes</h3>
+                    <div id="alerts-container" class="space-y-2">
+                        <!-- Alertas serão inseridos aqui -->
+                    </div>
+                </div>
+
+                <!-- Metas e Objetivos -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Metas Sugeridas</h3>
+                    <div id="goals-container" class="space-y-3">
+                        <!-- Metas serão inseridas aqui -->
+                    </div>
+                </div>
+
+                <!-- Botão de Atualizar Análise -->
+                <div class="text-center">
+                    <button id="refresh-analysis" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        🔄 Atualizar Análise
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Cartões de Crédito -->
+        <section id="page-cards" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Cartões de Crédito
+                    <div class="help-tooltip inline-block">
+                        <span class="help-icon">?</span>
+                        <span class="tooltip-text">
+                            <strong>Gestão de Cartões</strong><br>
+                            Controle todos os seus cartões de crédito: limites, faturas, compras e disponível para gastar.
+                        </span>
+                    </div>
+                </h2>
+
+                <!-- Filtros de Período -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <div>
+                            <label for="cartoesFiltroMes" class="block text-sm font-medium text-gray-700 mb-1">Filtrar por Período:</label>
+                            <select id="cartoesFiltroMes" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
+                                <option value="atual">Mês Atual</option>
+                                <option value="proximo">Próximo Mês</option>
+                                <option value="todos">Todos os Períodos</option>
+                                <option value="custom">Período Personalizado</option>
+                            </select>
+                        </div>
+                        
+                        <div id="cartoesCustomDateFilters" class="hidden flex gap-4">
+                            <div>
+                                <label for="cartoesDataInicio" class="block text-sm font-medium text-gray-700 mb-1">Data Início:</label>
+                                <input type="date" id="cartoesDataInicio" class="rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                            <div>
+                                <label for="cartoesDataFim" class="block text-sm font-medium text-gray-700 mb-1">Data Fim:</label>
+                                <input type="date" id="cartoesDataFim" class="rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button id="aplicarFiltroCartoes" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                Aplicar Filtro
+                            </button>
+                            <button id="limparFiltroCartoes" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors">
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumo Geral dos Cartões -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-blue-700" id="total-limite">R$ 0</div>
+                        <div class="text-sm text-gray-600">Limite Total</div>
+                    </div>
+                    <div class="bg-red-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-red-700" id="total-usado">R$ 0</div>
+                        <div class="text-sm text-gray-600">Total Usado</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-green-700" id="total-disponivel">R$ 0</div>
+                        <div class="text-sm text-gray-600">Total Disponível</div>
+                    </div>
+                </div>
+
+                <!-- Lista de Cartões -->
+                <div class="space-y-4" id="cartoes-container">
+                    <!-- Cartões serão inseridos aqui dinamicamente -->
+                </div>
+
+                <!-- Botão para Adicionar Novo Cartão -->
+                <div class="mt-6 text-center">
+                    <button id="btn-novo-cartao" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200">
+                        ➕ Adicionar Novo Cartão
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tela de Ajustes -->
+        <section id="page-settings" class="page hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4 text-center">Ajustes</h2>
+                
+                <!-- Seção de Gerenciamento de Categorias -->
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Gerenciar Categorias</h3>
+                    <div id="category-manager-container" class="space-y-2">
+                        <!-- Categorias serão inseridas aqui -->
+                    </div>
+                </div>
+
+                <!-- Seção de Exclusão em Lote -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Excluir Transações em Lote</h3>
+                    <form id="deleteForm" class="grid grid-cols-1 gap-4 items-end">
+                        <div>
+                            <label for="deleteDescricao" class="block text-sm font-medium text-gray-700">Descrição (contém)</label>
+                            <input type="text" id="deleteDescricao" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label for="deleteDataInicio" class="block text-sm font-medium text-gray-700">De</label>
+                                <input type="date" id="deleteDataInicio" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                            <div>
+                                <label for="deleteDataFim" class="block text-sm font-medium text-gray-700">Até</label>
+                                <input type="date" id="deleteDataFim" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                            </div>
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700">Excluir em Lote</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Menu de Navegação Fixo -->
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-lg flex justify-around z-10">
+        <button data-page="page-home" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-blue-600">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            <span class="text-xs">Início</span>
+        </button>
+        <button data-page="page-add" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span class="text-xs">Adicionar</span>
+        </button>
+        <button data-page="page-forecasts" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+            <span class="text-xs">Previsões</span>
+        </button>
+        <button data-page="page-charts" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <span class="text-xs">Gráficos</span>
+        </button>
+        <button data-page="page-intelligence" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+            <span class="text-xs">IA</span>
+        </button>
+        <button data-page="page-cards" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+            <span class="text-xs">Cartões</span>
+        </button>
+        <button data-page="page-settings" class="nav-button flex-1 flex flex-col items-center justify-center p-1 text-gray-500">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span class="text-xs">Ajustes</span>
+        </button>
+    </nav>
+
+    <!-- Modal para Marcar como Pago/Recebido -->
+    <div id="marcarPagoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <h3 id="modalTitle" class="text-lg font-medium leading-6 text-gray-900">Registrar Pagamento</h3>
+            <form id="marcarPagoForm" class="mt-4 space-y-4">
+                <input type="hidden" id="transacaoIdToMarkPaid">
+                <input type="hidden" id="transacaoTipoToMarkPaid">
+                <div>
+                    <label for="valorPago" class="block text-sm font-medium text-gray-700">Valor Efetivo</label>
+                    <input type="number" id="valorPago" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                </div>
+                <div>
+                    <label for="dataPagamento" class="block text-sm font-medium text-gray-700">Data da Efetivação</label>
+                    <input type="date" id="dataPagamento" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelMarcarPago" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" id="confirmButton" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Transação -->
+    <div id="editTransacaoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Editar Transação</h3>
+            <form id="editTransacaoForm" class="mt-4 space-y-4">
+                <input type="hidden" id="editTransacaoId">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editTipo" class="block text-sm font-medium text-gray-700">Tipo</label>
+                        <select id="editTipo" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                            <option value="despesa">Despesa</option>
+                            <option value="receita">Receita</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="editValor" class="block text-sm font-medium text-gray-700">Valor (R$)</label>
+                        <input type="number" id="editValor" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                    </div>
+                </div>
+                <div>
+                    <label for="editDescricao" class="block text-sm font-medium text-gray-700">Descrição</label>
+                    <input type="text" id="editDescricao" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                </div>
+                <div>
+                    <label for="editData" class="block text-sm font-medium text-gray-700">Data</label>
+                    <input type="date" id="editData" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                </div>
+                <div>
+                    <label for="editCategoria" class="block text-sm font-medium text-gray-700">Categoria</label>
+                    <input type="text" id="editCategoria" list="categorias-list" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" id="cancelEditTransacao" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes do Dashboard -->
+    <div id="dashboardDetailsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="dashboardDetailsTitle" class="text-lg font-medium leading-6 text-gray-900">Detalhes das Transações</h3>
+                <button id="closeDashboardDetails" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                            <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboardDetailsTableBody" class="divide-y divide-gray-200">
+                        <!-- Linhas serão inseridas aqui dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 bg-gray-50 p-4 rounded-lg">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-sm text-gray-600">Total Geral</p>
+                        <p id="detailsTotalGeral" class="text-lg font-bold text-gray-800">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Pago</p>
+                        <p id="detailsTotalPago" class="text-lg font-bold text-green-600">R$ 0,00</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Restante</p>
+                        <p id="detailsTotalRestante" class="text-lg font-bold text-blue-600">R$ 0,00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caixa de Mensagem Global -->
+    <div id="messageBox" class="hidden fixed bottom-24 right-5 bg-blue-500 text-white py-2 px-4 rounded-lg shadow-lg z-30">
+        <!-- Mensagem será inserida aqui -->
+    </div>
+
+    <!-- Modal de Ajuda Geral -->
+    <div id="generalHelpModal" class="help-modal hidden">
+        <div class="help-modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">💡 Sistema de Ajuda</h2>
+                <button id="closeGeneralHelp" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <div class="space-y-6">
+                <section>
+                    <h3 class="text-lg font-semibold text-blue-600 mb-3">🏠 Dashboard</h3>
+                    <p class="text-gray-700 leading-relaxed">
+                        Sua visão geral financeira. Os cartões coloridos mostram:
+                        <strong>Saldo Realizado</strong> (dinheiro atual), 
+                        <strong>Previsão de Saldo</strong> (estimativa futura), 
+                        <strong>Despesas Previstas</strong> (contas a pagar), 
+                        <strong>Total a Receber</strong> (dinheiro por vir), e 
+                        <strong>Total Pago</strong> (gastos realizados).
+                    </p>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-semibold text-green-600 mb-3">➕ Adicionar Transações</h3>
+                    <p class="text-gray-700 leading-relaxed">
+                        Registre suas <strong>receitas</strong> (dinheiro que entra) e <strong>despesas</strong> (dinheiro que sai). 
+                        Defina se a transação foi realizada (hoje) ou é uma previsão (futura). 
+                        Use categorias para organizar melhor seus gastos.
+                    </p>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-semibold text-purple-600 mb-3">📊 Previsões</h3>
+                    <p class="text-gray-700 leading-relaxed">
+                        Planeje seu futuro financeiro! Veja todas as transações futuras, 
+                        filtre por período, categoria ou valor. Use os filtros para encontrar 
+                        rapidamente o que procura.
+                    </p>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-semibold text-red-600 mb-3">📈 Gráficos</h3>
+                    <p class="text-gray-700 leading-relaxed">
+                        Visualize seus dados de forma intuitiva com gráficos de pizza, barras, 
+                        linhas e áreas. Analise tendências, distribições e padrões dos seus gastos 
+                        e receitas ao longo do tempo.
+                    </p>
+                </section>
+
+                <section>
+                    <h3 class="text-lg font-semibold text-orange-600 mb-3">🔍 Dicas de Uso</h3>
+                    <ul class="text-gray-700 space-y-2">
+                        <li>• <strong>Clique nos cartões do Dashboard</strong> para ver detalhes das transações</li>
+                        <li>• <strong>Clique nos cabeçalhos das tabelas</strong> para ordenar por aquela coluna</li>
+                        <li>• <strong>Clique nas linhas das tabelas</strong> para editar transações</li>
+                        <li>• <strong>Use ícones (?)</strong> para ajuda específica de cada campo</li>
+                        <li>• <strong>Mantenha descrições detalhadas</strong> para melhor controle</li>
+                    </ul>
+                </section>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-gray-200">
+                <p class="text-center text-gray-600 text-sm">
+                    💡 <strong>Dica:</strong> Passe o mouse sobre os ícones de ajuda (?) para dicas específicas!
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configurações -->
+    <div id="configModal" class="help-modal hidden">
+        <div class="help-modal-content max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">⚙️ Configurações</h2>
+                <button id="closeConfigModal" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+            </div>
+            
+            <div class="space-y-6">
+                <section class="border border-red-200 rounded-lg p-4 bg-red-50">
+                    <h3 class="text-lg font-semibold text-red-600 mb-3">⚠️ Zona de Perigo</h3>
+                    <p class="text-gray-700 text-sm mb-4">
+                        Esta ação irá apagar <strong>TODOS</strong> os seus dados permanentemente:
+                        transações, cartões de crédito, categorias e configurações.
+                        <strong>Esta ação não pode ser desfeita!</strong>
+                    </p>
+                    
+                    <div id="resetSteps" class="space-y-3">
+                        <!-- Primeira confirmação -->
+                        <div id="resetStep1" class="space-y-3">
+                            <p class="text-sm font-medium text-red-700">
+                                Passo 1: Confirme que deseja prosseguir
+                            </p>
+                            <button id="confirmStep1" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors">
+                                Sim, quero apagar todos os dados
+                            </button>
+                        </div>
+                        
+                        <!-- Segunda confirmação -->
+                        <div id="resetStep2" class="space-y-3 hidden">
+                            <p class="text-sm font-medium text-red-700">
+                                Passo 2: Digite "APAGAR TUDO" para confirmar
+                            </p>
+                            <input id="confirmText" type="text" placeholder="Digite: APAGAR TUDO" 
+                                   class="w-full px-3 py-2 border border-red-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                            <button id="confirmStep2" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors" disabled>
+                                Confirmar Exclusão
+                            </button>
+                        </div>
+                        
+                        <!-- Terceira confirmação -->
+                        <div id="resetStep3" class="space-y-3 hidden">
+                            <p class="text-sm font-medium text-red-700">
+                                Passo 3: Confirmação final - Clique e segure por 3 segundos
+                            </p>
+                            <button id="finalConfirm" class="w-full bg-red-700 hover:bg-red-800 text-white py-3 px-4 rounded-md text-sm font-medium transition-colors relative overflow-hidden">
+                                <span id="buttonText">Segurar para apagar definitivamente</span>
+                                <div id="progressBar" class="absolute bottom-0 left-0 h-1 bg-red-300 transition-all duration-100" style="width: 0%"></div>
+                            </button>
+                        </div>
+                        
+                        <!-- Botão de cancelar sempre visível -->
+                        <button id="cancelReset" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Exclusão de Cartão -->
+    <div id="deleteCartaoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium leading-6 text-gray-900">🗑️ Excluir Cartão</h3>
+                <button id="closeDeleteCartaoModal" class="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+            </div>
+            
+            <div class="mt-2">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                    <div class="flex items-start">
+                        <div class="text-red-600 text-2xl mr-3">⚠️</div>
+                        <div>
+                            <h4 class="text-red-800 font-semibold mb-2">Atenção: Ação Irreversível</h4>
+                            <p class="text-red-700 text-sm mb-2">
+                                Você está prestes a excluir permanentemente o cartão:
+                            </p>
+                            <div id="cartaoInfoDelete" class="bg-white border border-red-300 rounded p-3 mb-3">
+                                <!-- Informações do cartão serão inseridas aqui -->
+                            </div>
+                            <p class="text-red-700 text-sm font-medium">
+                                Esta ação não pode ser desfeita!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="confirmDeleteSection" class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Para confirmar, digite o nome do cartão:
+                    </label>
+                    <input type="text" id="confirmCartaoName" 
+                           placeholder="Digite o nome exato do cartão"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button id="cancelDeleteCartao" 
+                                class="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md font-medium transition-colors">
+                            Cancelar
+                        </button>
+                        <button id="confirmDeleteCartao" 
+                                class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md font-medium transition-colors opacity-50" 
+                                disabled>
+                            Excluir Definitivamente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Detalhes do Cartão -->
+    <div id="detalhesCartaoModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
+        <div class="relative top-4 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 xl:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">Detalhes do Cartão</h3>
+                    <button onclick="document.getElementById('detalhesCartaoModal').style.display='none'" 
+                            class="text-gray-500 hover:text-gray-700 text-xl font-bold">&times;</button>
+                </div>
+                <div id="detalhesCartaoContent" class="max-h-96 overflow-y-auto">
+                    <!-- Conteúdo será inserido aqui pelo JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Capacitor -->
+    <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
+    <script src="https://unpkg.com/@capacitor-community/sqlite@latest/dist/capacitor-sqlite.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Configurações Globais -->
+    <script src="js/config/AppConfig.js"></script>
+    
+    <!-- Utilitários -->
+    <script src="js/utils/DateUtils.js"></script>
+    <script src="js/utils/CurrencyUtils.js"></script>
+    <script src="js/utils/ValidationUtils.js"></script>
+    <script src="js/utils/ChartUtils.js"></script>
+    
+    <!-- Modelos -->
+    <script src="js/models/Transacao.js"></script>
+    <script src="js/models/Cartao.js"></script>
+    <script src="js/models/Categoria.js"></script>
+    
+    <!-- Serviços -->
+    <script src="js/services/StorageService.js"></script>
+    <script src="js/services/TransacaoService.js"></script>
+    <script src="js/services/CartaoService.js"></script>
+    <script src="js/services/CategoriaService.js"></script>
+    
+    <!-- Controladores -->
+    <script src="js/controllers/TransacaoController.js"></script>
+    <script src="js/controllers/CartaoController.js"></script>
+    <script src="js/controllers/DashboardController.js"></script>
+    
+    <!-- Inicializador do Sistema Modular -->
+    <script src="js/AppInitializer.js"></script>
+    
+    <!-- Script principal (legado - será removido após migração completa) -->
+    <script src="script.js" defer></script>
+</body>
+</html>
