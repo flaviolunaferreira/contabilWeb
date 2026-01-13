@@ -66,7 +66,7 @@ class TransacaoController {
             inputData: document.getElementById('data'),
             selectTipo: document.getElementById('tipo'),
             selectCategoria: document.getElementById('categoria'),
-            selectCartao: document.getElementById('cartao'),
+            selectCartao: document.getElementById('cartaoCredito'),
             selectStatus: document.getElementById('status'),
             inputParcelas: document.getElementById('parcelas'),
             btnSubmit: document.getElementById('btnSubmitTransacao'),
@@ -152,6 +152,24 @@ class TransacaoController {
         }
     }
 
+        this.elementos = {
+            form: document.getElementById('transacaoForm'),
+            inputDescricao: document.getElementById('descricao'),
+            inputValor: document.getElementById('valor'),
+            inputData: document.getElementById('data'),
+            selectTipo: document.getElementById('tipo'),
+            selectCategoria: document.getElementById('categoria'),
+            selectEssentiality: document.getElementById('essentiality'),
+            // ... outros campos mapeados dinamicamente ou abaixo
+            checkboxParcelado: document.getElementById('isParcelada'),
+            checkboxRecorrente: document.getElementById('isRecorrente')
+        };
+        
+        // Mapeamento extra se necessário, pois alguns IDs podem ter sido omitidos no snippet principal
+        if (!this.elementos.inputParcelas) this.elementos.inputParcelas = document.getElementById('numParcelas');
+        if (!this.elementos.selectStatus) this.elementos.selectStatus = { value: 'PENDENTE' }; // Mock se não existir no form principal
+    }
+
     /**
      * Handle do submit do formulário de transação
      * @param {Event} event - Evento do formulário
@@ -162,6 +180,24 @@ class TransacaoController {
         
         try {
             const dadosTransacao = this.coletarDadosFormulario();
+            
+            // --- CUSTO DE OPORTUNIDADE (IA) ---
+            // Verifica se é um gasto supérfluo e alerta o usuário
+            if (dadosTransacao.tipo === 'despesa') {
+                const valorCentavos = Math.round(dadosTransacao.valor * 100);
+                // Import dinâmico ou uso de classe global se disponível
+                // Assumindo WealthAdvisor global ou importado.
+                if (typeof WealthAdvisor !== 'undefined') {
+                    const opportunityAlert = WealthAdvisor.checkOpportunityCost(valorCentavos, dadosTransacao.essentiality);
+                    
+                    if (opportunityAlert) {
+                        const prosseguir = confirm(`${opportunityAlert.message}\n\n${opportunityAlert.actionLabel}`);
+                        if (!prosseguir) return; // Cancela submissão
+                    }
+                }
+            }
+            // ----------------------------------
+
             const isEdicao = this.transacaoEditando !== null;
 
             let resultado;
@@ -295,9 +331,17 @@ class TransacaoController {
             data: this.elementos.inputData.value,
             tipo: this.elementos.selectTipo.value,
             categoria: this.elementos.selectCategoria.value,
-            status: this.elementos.selectStatus.value,
-            parcelas: parseInt(this.elementos.inputParcelas.value) || 1
+            essentiality: this.elementos.selectEssentiality ? this.elementos.selectEssentiality.value : 'NECESSARIO',
+            status: 'PENDENTE', // Default, melhoria futura: campo status
+            parcelas: 1
         };
+        
+        if (this.elementos.checkboxParcelado && this.elementos.checkboxParcelado.checked) {
+             dados.parcelas = parseInt(this.elementos.inputParcelas.value) || 1;
+        }
+
+        return dados;
+    }
 
         // Adicionar cartão apenas para despesas
         if (dados.tipo === 'despesa' && this.elementos.selectCartao.value) {
@@ -506,9 +550,9 @@ class TransacaoController {
             this.elementos.selectCartao.appendChild(new Option('Selecione um cartão', ''));
             
             // Cartões ativos
-            const cartoes = this.cartaoService.obterAtivos();
+            const cartoes = await this.cartaoService.obterAtivos();
             cartoes.forEach(cartao => {
-                this.elementos.selectCartao.appendChild(new Option(cartao.nome, cartao.id));
+                this.elementos.selectCartao.appendChild(new Option(cartao.name || cartao.nome, cartao.id));
             });
             
             // Restaurar seleção

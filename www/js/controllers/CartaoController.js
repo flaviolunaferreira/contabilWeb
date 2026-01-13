@@ -8,7 +8,7 @@
  * Controller responsável por gerenciar a interface de cartões de crédito
  * @class CartaoController
  */
-class CartaoController {
+export class CartaoController {
     /**
      * Cria uma nova instância do CartaoController
      * @param {CartaoService} cartaoService - Instância do serviço de cartões
@@ -74,7 +74,7 @@ class CartaoController {
             modalConfirmacao: document.getElementById('modalConfirmacao'),
 
             // Botões
-            btnNovoCartao: document.getElementById('btnNovoCartao'),
+            btnNovoCartao: document.getElementById('btn-novo-cartao'),
             btnExportarCartoes: document.getElementById('btnExportarCartoes'),
             btnImportarCartoes: document.getElementById('btnImportarCartoes'),
 
@@ -131,6 +131,8 @@ class CartaoController {
         
         try {
             const dadosCartao = this.coletarDadosFormulario();
+            console.log('📝 [CartaoController] Dados coletados do formulário:', dadosCartao);
+            
             const isEdicao = this.cartaoEditando !== null;
 
             let resultado;
@@ -271,14 +273,20 @@ class CartaoController {
      * @private
      */
     coletarDadosFormulario() {
+        const rawLimit = parseFloat(this.elementos.inputLimiteCartao.value) || 0;
+        
+        // Mapeia para o formato esperado pelo CardModel (Inglês)
+        // CardModel espera: name, limit (centavos), closingDay, dueDay
         return {
-            nome: this.elementos.inputNomeCartao.value.trim(),
-            limite: parseFloat(this.elementos.inputLimiteCartao.value) || 0,
-            vencimento: parseInt(this.elementos.inputVencimentoCartao.value) || 1,
-            fechamento: parseInt(this.elementos.inputFechamentoCartao.value) || 1,
-            cor: this.elementos.inputCorCartao.value || '#0066CC',
-            icone: this.elementos.selectIconeCartao.value || '💳',
-            ativo: this.elementos.checkboxAtivoCartao.checked
+            name: this.elementos.inputNomeCartao.value.trim(),
+            limit: Math.round(rawLimit * 100), // Converte para centavos
+            dueDay: parseInt(this.elementos.inputVencimentoCartao.value) || 1,
+            closingDay: parseInt(this.elementos.inputFechamentoCartao.value) || 1,
+            
+            // Campos extras que talvez o Model não valide agora, mas precisamos persistir
+            color: this.elementos.inputCorCartao.value || '#0066CC',
+            icon: this.elementos.selectIconeCartao.value || '💳',
+            active: this.elementos.checkboxAtivoCartao.checked
         };
     }
 
@@ -288,14 +296,19 @@ class CartaoController {
      * @private
      */
     preencherFormulario(cartao) {
+        // Suporta tanto formato antigo (PT) quanto novo (EN/Model)
         this.elementos.inputIdCartao.value = cartao.id;
-        this.elementos.inputNomeCartao.value = cartao.nome;
-        this.elementos.inputLimiteCartao.value = cartao.limite;
-        this.elementos.inputVencimentoCartao.value = cartao.vencimento;
-        this.elementos.inputFechamentoCartao.value = cartao.fechamento;
-        this.elementos.inputCorCartao.value = cartao.cor || '#0066CC';
-        this.elementos.selectIconeCartao.value = cartao.icone || '💳';
-        this.elementos.checkboxAtivoCartao.checked = cartao.ativo;
+        this.elementos.inputNomeCartao.value = cartao.name || cartao.nome;
+        
+        // Limite vem em centavos do Model, converter para reais na view
+        const limitCentavos = cartao.limit !== undefined ? cartao.limit : (cartao.limite || 0);
+        this.elementos.inputLimiteCartao.value = (limitCentavos / 100).toFixed(2);
+        
+        this.elementos.inputVencimentoCartao.value = cartao.dueDay || cartao.vencimento;
+        this.elementos.inputFechamentoCartao.value = cartao.closingDay || cartao.fechamento;
+        this.elementos.inputCorCartao.value = cartao.color || cartao.cor || '#0066CC';
+        this.elementos.selectIconeCartao.value = cartao.icon || cartao.icone || '💳';
+        this.elementos.checkboxAtivoCartao.checked = cartao.active !== undefined ? cartao.active : cartao.ativo;
 
         this.elementos.btnSubmitCartao.textContent = 'Atualizar Cartão';
     }
@@ -363,26 +376,37 @@ class CartaoController {
         return cartoes.map(cartao => {
             const utilizado = this.cartaoService.calcularUtilizado(cartao.id, transacoes);
             const disponivel = this.cartaoService.calcularLimiteDisponivel(cartao.id, transacoes);
-            const percentualUso = cartao.limite > 0 ? (utilizado / cartao.limite) * 100 : 0;
             
+            // Compatibilidade com API (English) e Local (Portuguese)
+            const limite = cartao.limit !== undefined ? cartao.limit / 100 : (cartao.limite || 0) / 100;
+            const nome = cartao.name || cartao.nome || 'Sem Nome';
+            const cor = cartao.color || cartao.cor || '#0066CC';
+            const icone = cartao.icon || cartao.icone || '💳';
+            const ativo = cartao.active !== undefined ? (cartao.active === 1 || cartao.active === true) : cartao.ativo;
+            const vencimento = cartao.dueDay || cartao.vencimento;
+            const fechamento = cartao.closingDay || cartao.fechamento;
+
+            const percentualUso = limite > 0 ? (utilizado / 100 / limite) * 100 : 0; // Utilizado vem em centavos tbm?
+            // calcularUtilizado retorna centavos? calcularLimiteDisponivel sim (ver CartaoService)
+
             const corBarra = percentualUso >= 80 ? 'bg-red-500' : percentualUso >= 60 ? 'bg-yellow-500' : 'bg-green-500';
-            const statusColor = cartao.ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
+            const statusColor = ativo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
             
             return `
-                <div class="bg-white rounded-lg shadow p-4 mb-4 border-l-4" style="border-left-color: ${cartao.cor}">
+                <div class="bg-white rounded-lg shadow p-4 mb-4 border-l-4" style="border-left-color: ${cor}">
                     <div class="flex justify-between items-start mb-4">
                         <div class="flex items-center">
-                            <span class="text-2xl mr-2">${cartao.icone}</span>
+                            <span class="text-2xl mr-2">${icone}</span>
                             <div>
-                                <h3 class="font-semibold text-gray-900">${cartao.nome}</h3>
+                                <h3 class="font-semibold text-gray-900">${nome}</h3>
                                 <span class="inline-block px-2 py-1 rounded-full text-xs font-medium ${statusColor}">
-                                    ${cartao.ativo ? 'Ativo' : 'Inativo'}
+                                    ${ativo ? 'Ativo' : 'Inativo'}
                                 </span>
                             </div>
                         </div>
                         <div class="text-right">
                             <div class="text-sm text-gray-600">Limite</div>
-                            <div class="text-lg font-bold text-blue-600">${this.formatarMoeda(cartao.limite)}</div>
+                            <div class="text-lg font-bold text-blue-600">${this.formatarMoeda(limite * 100)}</div>
                         </div>
                     </div>
                     
@@ -402,17 +426,17 @@ class CartaoController {
                     
                     <div class="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
                         <div>
-                            <span class="font-medium">Vencimento:</span> dia ${cartao.vencimento}
+                            <span class="font-medium">Vencimento:</span> dia ${vencimento}
                         </div>
                         <div>
-                            <span class="font-medium">Fechamento:</span> dia ${cartao.fechamento}
+                            <span class="font-medium">Fechamento:</span> dia ${fechamento}
                         </div>
                     </div>
                     
                     <div class="flex justify-end space-x-2">
                         <button onclick="cartaoController.handleAtivarDesativar('${cartao.id}')" 
-                                class="px-3 py-1 ${cartao.ativo ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-500 hover:bg-green-600'} text-white rounded text-sm">
-                            ${cartao.ativo ? '⏸️ Desativar' : '▶️ Ativar'}
+                                class="px-3 py-1 ${ativo ? 'bg-gray-500 hover:bg-gray-600' : 'bg-green-500 hover:bg-green-600'} text-white rounded text-sm">
+                            ${ativo ? '⏸️ Desativar' : '▶️ Ativar'}
                         </button>
                         <button onclick="cartaoController.handleEditarCartao('${cartao.id}')" 
                                 class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
