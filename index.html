@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxo 360 Ultimate - Stable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        
+        :root { --primary: #4f46e5; --bg-main: #f8fafc; }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-main);
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism & UI */
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.95); 
+            border: 1px solid #e2e8f0; 
+            border-radius: 24px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease;
+        }
+        
+        .nav-item { transition: all 0.3s ease; cursor: pointer; }
+        .nav-item.active { background: #1e293b; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .nav-item:hover:not(.active) { background: #e2e8f0; }
+
+        /* Cartão de Crédito Style */
+        .card-visa { 
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%); 
+            color: white; position: relative; overflow: hidden;
+        }
+        .card-visa::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .status-pill { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+        .status-paid { background: #dcfce7; color: #166534; }
+        .status-pending { background: #fef9c3; color: #854d0e; }
+        .status-overdue { background: #fee2e2; color: #991b1b; }
+        
+        /* SCROLL PERSONALIZADO */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-slate-200 flex flex-col p-6 hidden md:flex shrink-0 z-20">
+        <div class="flex items-center gap-3 mb-10 px-2">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                <i class="fas fa-cube text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-tight leading-none">FLUXO 360</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ultimate</p>
+            </div>
+        </div>
+
+        <nav class="space-y-2 flex-1">
+            <div onclick="App.navigate('dashboard')" id="nav-dashboard" class="nav-item active p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-chart-pie w-5"></i> Dashboard
+            </div>
+            <div onclick="App.navigate('lancamentos')" id="nav-lancamentos" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-list-ul w-5"></i> Lançamentos
+            </div>
+            <div onclick="App.navigate('cartoes')" id="nav-cartoes" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-credit-card w-5"></i> Meus Cartões
+            </div>
+            <div onclick="App.navigate('config')" id="nav-config" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-cog w-5"></i> Ajustes & Backup
+            </div>
+        </nav>
+
+        <div class="bg-slate-900 rounded-2xl p-4 text-white mt-auto">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">Saldo Livre</p>
+            <h3 id="sidebar-balance" class="text-xl font-black mt-1">R$ 0,00</h3>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-10">
+            <div class="flex items-center gap-4">
+                <button onclick="App.changeDate(-1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-left text-slate-400"></i></button>
+                <h2 id="header-date" class="text-lg font-extrabold text-slate-800 min-w-[160px] text-center capitalize">--</h2>
+                <button onclick="App.changeDate(1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-right text-slate-400"></i></button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="Modal.open('card')" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm transition">
+                    <i class="fas fa-credit-card mr-1"></i> Cartão
+                </button>
+                <button onclick="Modal.open('transaction')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 transition flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Novo
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 custom-scroll relative">
+            
+            <div id="view-dashboard" class="space-y-8 animate-fade">
+                <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="glass-card p-6 border-l-4 border-emerald-500">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Receitas (Mês)</p>
+                        <h3 id="kpi-income" class="text-2xl font-black text-slate-800 mt-1">R$ 0,00</h3>
+                        <div class="mt-2 text-xs text-slate-400 flex justify-between">
+                            <span>Real: <b id="kpi-inc-real" class="text-emerald-600">0</b></span>
+                            <span>Pend: <b id="kpi-inc-pend">0</b></span>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 border-l-4 border-rose-500">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Despesas (Mês)</p>
+                        <h3 id="kpi-expense" class="text-2xl font-black text-slate-800 mt-1">R$ 0,00</h3>
+                        <div class="mt-2 text-xs text-slate-400 flex justify-between">
+                            <span>Real: <b id="kpi-exp-real" class="text-rose-600">0</b></span>
+                            <span>Pend: <b id="kpi-exp-pend">0</b></span>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 border-l-4 border-indigo-500 bg-indigo-50/50">
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Saldo Acumulado</p>
+                        <h3 id="kpi-projected" class="text-2xl font-black text-indigo-700 mt-1">R$ 0,00</h3>
+                        <p class="text-[10px] text-indigo-400 font-bold mt-1">Projeção até fim do mês</p>
+                    </div>
+                    <div class="glass-card p-6 bg-slate-900 text-white border-none relative overflow-hidden">
+                        <div class="relative z-10">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Saldo Livre</p>
+                            <h3 id="kpi-free-balance" class="text-3xl font-black mt-1 text-emerald-400">R$ 0,00</h3>
+                            <div class="mt-2 text-[10px] font-bold text-slate-300 border-t border-white/10 pt-2">
+                                <div class="flex justify-between"><span>Caixa Hoje:</span> <span id="kpi-current-cash" class="text-white">R$ 0,00</span></div>
+                                <div class="flex justify-between text-rose-300 mt-1"><span>Reserva (Dia 1-5):</span> <span id="kpi-reserve">- R$ 0,00</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="glass-card p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-slate-800">Fluxo Financeiro (Efetivo)</h3>
+                            <span class="text-xs font-bold text-slate-400 uppercase">Visão Gráfica</span>
+                        </div>
+                        <div class="h-64 relative w-full">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 flex flex-col h-[350px]">
+                        <h3 class="font-bold text-slate-800 mb-4 shrink-0">Próximos Vencimentos</h3>
+                        <div id="dashboard-agenda" class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3">
+                            </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-cartoes" class="hidden space-y-8">
+                <div class="glass-card p-6 border-l-4 border-slate-800 bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-black text-slate-800">Resumo de Faturas</h2>
+                        <p class="text-xs text-slate-500 font-bold uppercase mt-1">Total a pagar no mês selecionado</p>
+                    </div>
+                    <h3 id="cards-total-month" class="text-3xl font-black text-slate-800">R$ 0,00</h3>
+                </div>
+                <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <div id="view-lancamentos" class="hidden space-y-6">
+                <div class="flex justify-between items-end">
+                    <h2 class="text-2xl font-black text-slate-800">Extrato Detalhado</h2>
+                    <input type="text" id="search-input" onkeyup="App.renderList()" placeholder="Buscar..." class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="glass-card overflow-hidden">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-100 text-slate-500">
+                            <tr>
+                                <th class="p-4 font-bold">Data Efetiva</th>
+                                <th class="p-4 font-bold">Descrição</th>
+                                <th class="p-4 font-bold">Método</th>
+                                <th class="p-4 font-bold">Status</th>
+                                <th class="p-4 font-bold text-right">Valor</th>
+                                <th class="p-4 font-bold text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-config" class="hidden space-y-8">
+                <h2 class="text-2xl font-black text-slate-800">Manutenção</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="glass-card p-8">
+                        <h3 class="font-bold text-lg mb-2">Dados</h3>
+                        <div class="space-y-3">
+                            <button onclick="DataMgr.export()" class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between">
+                                <span><i class="fas fa-download mr-2"></i> Baixar JSON</span>
+                            </button>
+                            <label class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between cursor-pointer">
+                                <span><i class="fas fa-upload mr-2"></i> Importar JSON</span>
+                                <input type="file" class="hidden" accept=".json" onchange="DataMgr.import(event)">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="glass-card p-8 border-rose-100 bg-rose-50/30">
+                        <h3 class="font-bold text-lg text-rose-700 mb-2">Reset</h3>
+                        <button onclick="DataMgr.nuke()" class="w-full p-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">APAGAR TUDO</button>
+                        <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold">Gerar Dados Teste</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div id="modal-transaction" class="modal-content hidden bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative">
+            <button onclick="Modal.close()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            <h3 id="modal-title" class="text-xl font-black mb-6 text-slate-800">Nova Transação</h3>
+            
+            <div class="space-y-4">
+                <input type="hidden" id="t-id">
+                <input id="t-desc" type="text" placeholder="Descrição" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <input id="t-amount" type="number" step="0.01" placeholder="R$ 0,00" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
+                    <input id="t-date" type="date" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-500">
+                </div>
+
+                <div id="recurrence-wrapper" class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-bold text-slate-400 uppercase">Repetir (Meses)</label>
+                        <span class="text-[10px] text-slate-400 bg-white px-2 py-1 rounded">1 = Única</span>
+                    </div>
+                    <input id="t-repeat" type="number" min="1" value="1" class="w-full p-2 bg-white border border-slate-200 rounded-lg font-bold text-center">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-type-in" onclick="Modal.setType('income')" class="p-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-400 transition">Entrada</button>
+                    <button id="btn-type-out" onclick="Modal.setType('expense')" class="p-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-400 transition">Saída</button>
+                </div>
+
+                <div id="logic-dia-util" class="hidden p-3 bg-slate-50 rounded-xl flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-600">Considerar 5º Dia Útil?</span>
+                    <input type="checkbox" id="t-dia-util" class="w-5 h-5 accent-indigo-600">
+                </div>
+
+                <select id="t-method" onchange="Modal.toggleCardSelect()" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600">
+                    <option value="money">Dinheiro / PIX / Débito</option>
+                    <option value="credit">Cartão de Crédito</option>
+                </select>
+
+                <div id="card-select-wrapper" class="hidden">
+                    <select id="t-card-id" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600"></select>
+                </div>
+
+                <div id="status-wrapper" class="flex gap-4 px-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="t-status" value="paid" checked class="w-4 h-4 text-indigo-600"> <span class="text-sm font-bold text-slate-600">Pago</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="t-status" value="pending" class="w-4 h-4 text-indigo-600"> <span class="text-sm font-bold text-slate-600">Pendente</span>
+                    </label>
+                </div>
+
+                <button onclick="App.saveTransaction()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 mt-4 transition">Salvar</button>
+            </div>
+        </div>
+
+        <div id="modal-card" class="modal-content hidden bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl relative">
+            <button onclick="Modal.close()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-600"><i class="fas fa-times text-xl"></i></button>
+            <h3 class="text-xl font-black mb-6 text-slate-800">Novo Cartão</h3>
+            <div class="space-y-4">
+                <input id="c-name" type="text" placeholder="Nome" class="w-full p-4 bg-slate-50 border-none rounded-xl">
+                <input id="c-limit" type="number" placeholder="Limite" class="w-full p-4 bg-slate-50 border-none rounded-xl">
+                <div class="grid grid-cols-2 gap-4">
+                    <input id="c-closing" type="number" placeholder="Dia Fech." class="p-4 bg-slate-50 border-none rounded-xl">
+                    <input id="c-due" type="number" placeholder="Dia Venc." class="p-4 bg-slate-50 border-none rounded-xl">
+                </div>
+                <button onclick="App.addCard()" class="w-full bg-slate-900 text-white p-4 rounded-xl font-bold">Criar Cartão</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- HELPERS E CALC ---
+        function addMonthsPreservingDay(startDate, monthsToAdd) {
+            const targetDate = new Date(startDate);
+            const originalDay = startDate.getDate();
+            targetDate.setDate(1);
+            targetDate.setMonth(targetDate.getMonth() + monthsToAdd);
+            const year = targetDate.getFullYear();
+            const month = targetDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            targetDate.setDate(Math.min(originalDay, daysInMonth));
+            return targetDate;
+        }
+
+        function calculate5thBusinessDay(year, month) {
+            let count = 0, day = 1;
+            while(count < 5) {
+                let d = new Date(year, month, day);
+                if(d.getDay() !== 0 && d.getDay() !== 6) count++;
+                if(count < 5) day++;
+            }
+            return day;
+        }
+
+        // --- STORE ---
+        const Store = {
+            transactions: JSON.parse(localStorage.getItem('f360_v3_data')) || [],
+            cards: JSON.parse(localStorage.getItem('f360_v3_cards')) || [],
+            save() {
+                localStorage.setItem('f360_v3_data', JSON.stringify(this.transactions));
+                localStorage.setItem('f360_v3_cards', JSON.stringify(this.cards));
+            }
+        };
+
+        // --- MODAL ---
+        const Modal = {
+            selectedType: null,
+            open(type, editId = null) {
+                document.getElementById('modal-overlay').classList.remove('hidden');
+                document.querySelectorAll('.modal-content').forEach(el => el.classList.add('hidden'));
+                document.getElementById(`modal-${type}`).classList.remove('hidden');
+                
+                if(type === 'transaction') {
+                    const sel = document.getElementById('t-card-id');
+                    sel.innerHTML = Store.cards.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+                    
+                    if (editId) {
+                        const t = Store.transactions.find(x => x.id === editId);
+                        document.getElementById('modal-title').innerText = "Editar Transação";
+                        document.getElementById('t-id').value = t.id;
+                        document.getElementById('t-desc').value = t.desc.replace(/\s\(\d+\/\d+\)$/, '');
+                        document.getElementById('t-amount').value = t.amount;
+                        document.getElementById('t-date').value = t.date;
+                        document.getElementById('t-method').value = t.method;
+                        if(t.cardId) document.getElementById('t-card-id').value = t.cardId;
+                        
+                        const radios = document.getElementsByName('t-status');
+                        for(let r of radios) r.checked = (r.value === t.status);
+                        
+                        document.getElementById('t-dia-util').checked = t.use5thDay || false;
+                        this.setType(t.type); 
+                        this.toggleCardSelect();
+                        document.getElementById('recurrence-wrapper').classList.add('hidden');
+                    } else {
+                        document.getElementById('modal-title').innerText = "Nova Transação";
+                        document.getElementById('t-id').value = "";
+                        document.getElementById('t-desc').value = "";
+                        document.getElementById('t-amount').value = "";
+                        document.getElementById('t-date').valueAsDate = new Date();
+                        document.getElementById('t-repeat').value = "1";
+                        document.getElementById('t-dia-util').checked = false;
+                        this.setType('expense');
+                        document.getElementById('recurrence-wrapper').classList.remove('hidden');
+                    }
+                }
+            },
+            close() { document.getElementById('modal-overlay').classList.add('hidden'); },
+            setType(t) {
+                this.selectedType = t;
+                const bin = document.getElementById('btn-type-in');
+                const bout = document.getElementById('btn-type-out');
+                const logic5 = document.getElementById('logic-dia-util');
+
+                if(t === 'income') {
+                    bin.className = 'p-3 rounded-xl font-bold text-sm bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500 transition';
+                    bout.className = 'p-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-400 transition';
+                    logic5.classList.remove('hidden');
+                } else {
+                    bout.className = 'p-3 rounded-xl font-bold text-sm bg-rose-100 text-rose-700 ring-2 ring-rose-500 transition';
+                    bin.className = 'p-3 rounded-xl font-bold text-sm bg-slate-100 text-slate-400 transition';
+                    logic5.classList.add('hidden');
+                }
+            },
+            toggleCardSelect() {
+                const method = document.getElementById('t-method').value;
+                const cw = document.getElementById('card-select-wrapper');
+                const sw = document.getElementById('status-wrapper');
+                if(method === 'credit') {
+                    cw.classList.remove('hidden');
+                    sw.classList.add('opacity-50', 'pointer-events-none'); 
+                } else {
+                    cw.classList.add('hidden');
+                    sw.classList.remove('opacity-50', 'pointer-events-none');
+                }
+            }
+        };
+
+        // --- APP ---
+        const App = {
+            currentDate: new Date(),
+            currentView: 'dashboard',
+            processedTransactions: [],
+
+            init() { this.render(); },
+            navigate(view) {
+                this.currentView = view;
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                document.getElementById(`nav-${view}`).classList.add('active');
+                ['dashboard', 'lancamentos', 'cartoes', 'config'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+                document.getElementById(`view-${view}`).classList.remove('hidden');
+                this.render();
+            },
+            changeDate(months) { this.currentDate.setMonth(this.currentDate.getMonth() + months); this.render(); },
+            
+            saveTransaction() {
+                const id = document.getElementById('t-id').value;
+                const desc = document.getElementById('t-desc').value;
+                const amount = parseFloat(document.getElementById('t-amount').value);
+                const dateVal = document.getElementById('t-date').value;
+                const method = document.getElementById('t-method').value;
+                const cardId = document.getElementById('t-card-id').value;
+                const status = document.querySelector('input[name="t-status"]:checked').value;
+                const use5thDay = document.getElementById('t-dia-util').checked;
+                const repeatCount = parseInt(document.getElementById('t-repeat').value) || 1;
+
+                if (!desc || isNaN(amount) || !dateVal || !Modal.selectedType) return alert("Preencha todos os campos!");
+
+                const baseT = { amount, method, status, type: Modal.selectedType, cardId: method === 'credit' ? cardId : null, use5thDay: Modal.selectedType === 'income' ? use5thDay : false };
+
+                if (id) {
+                    const idx = Store.transactions.findIndex(t => t.id == id);
+                    if (idx !== -1) Store.transactions[idx] = { ...Store.transactions[idx], ...baseT, desc: desc, date: dateVal };
+                } else {
+                    let startDate = new Date(dateVal + 'T00:00:00');
+                    for (let i = 0; i < repeatCount; i++) {
+                        let nextDate = addMonthsPreservingDay(startDate, i);
+                        const isoDate = nextDate.toISOString().split('T')[0];
+                        let finalDesc = desc;
+                        if (repeatCount > 1) finalDesc = `${desc} (${i + 1}/${repeatCount})`;
+                        Store.transactions.push({ id: Date.now() + i, ...baseT, desc: finalDesc, date: isoDate });
+                    }
+                }
+                Store.save(); Modal.close(); this.render();
+            },
+            addCard() {
+                const name = document.getElementById('c-name').value;
+                const limit = parseFloat(document.getElementById('c-limit').value);
+                const closing = parseInt(document.getElementById('c-closing').value);
+                const due = parseInt(document.getElementById('c-due').value);
+                if (!name || isNaN(limit)) return alert("Dados inválidos");
+                Store.cards.push({ id: Date.now(), name, limit, closing, due });
+                Store.save(); Modal.close(); this.render();
+            },
+            toggleStatus(id) { const t = Store.transactions.find(t => t.id === id); if(t) { t.status = t.status === 'paid' ? 'pending' : 'paid'; Store.save(); this.render(); } },
+            deleteTransaction(id) { if(confirm("Remover?")) { Store.transactions = Store.transactions.filter(t => t.id !== id); Store.save(); this.render(); } },
+            deleteCard(id) { if(confirm("Remover cartão?")) { Store.cards = Store.cards.filter(c => c.id !== id); Store.save(); this.render(); } },
+            
+            updateSafe(id, val) {
+                const el = document.getElementById(id);
+                if (el) el.innerText = val;
+            },
+
+            processTransactions() {
+                this.processedTransactions = Store.transactions.map(t => {
+                    let effectiveDate = new Date(t.date + 'T00:00:00');
+                    let displayNote = '';
+                    let originLabel = t.method === 'credit' ? 'Cartão' : 'Conta';
+
+                    if (t.type === 'income' && t.use5thDay) {
+                        const day5 = calculate5thBusinessDay(effectiveDate.getFullYear(), effectiveDate.getMonth());
+                        effectiveDate.setDate(day5);
+                        displayNote = '5º Dia Útil Calculado';
+                    }
+                    if (t.method === 'credit' && t.cardId) {
+                        const card = Store.cards.find(c => c.id == t.cardId);
+                        if (card) {
+                            const originalDay = effectiveDate.getDate();
+                            if (originalDay >= card.closing) {
+                                effectiveDate.setMonth(effectiveDate.getMonth() + 1);
+                            }
+                            effectiveDate.setDate(card.due);
+                            originLabel = card.name;
+                            displayNote = `Compra em: ${new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+                        }
+                    }
+                    return { ...t, effectiveDate, displayNote, originLabel };
+                });
+            },
+
+            render() {
+                this.processTransactions();
+                const m = this.currentDate.getMonth(), y = this.currentDate.getFullYear();
+                this.updateSafe('header-date', this.currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }));
+
+                const monthTrans = this.processedTransactions.filter(t => t.effectiveDate.getMonth() === m && t.effectiveDate.getFullYear() === y);
+
+                let incReal = 0, incPend = 0, expReal = 0, expPend = 0;
+                monthTrans.forEach(t => {
+                    if (t.type === 'income') {
+                        if (t.status === 'paid') incReal += t.amount; else incPend += t.amount;
+                    } else {
+                        if (t.status === 'paid') expReal += t.amount; else expPend += t.amount;
+                    }
+                });
+
+                // CÁLCULO DE RESERVA (DIA 1 A 5)
+                let reserveAmount = 0;
+                monthTrans.forEach(t => {
+                    if (t.type === 'expense' && t.status === 'pending' && t.effectiveDate.getDate() <= 5) {
+                        reserveAmount += t.amount;
+                    }
+                });
+
+                // SALDOS ACUMULADOS
+                let balReal = 0; 
+                let balProj = 0; 
+                const endOfViewMonth = new Date(y, m + 1, 0, 23, 59, 59);
+
+                this.processedTransactions.forEach(t => {
+                    if (t.status === 'paid') {
+                        if (t.type === 'income') balReal += t.amount; else balReal -= t.amount;
+                    }
+                    if (t.effectiveDate <= endOfViewMonth) {
+                        if (t.type === 'income') balProj += t.amount; else balProj -= t.amount;
+                    }
+                });
+
+                if(this.currentView === 'dashboard') {
+                    this.updateSafe('kpi-income', this.fmt(incReal + incPend));
+                    this.updateSafe('kpi-inc-real', this.fmt(incReal));
+                    this.updateSafe('kpi-inc-pend', this.fmt(incPend));
+
+                    this.updateSafe('kpi-expense', this.fmt(expReal + expPend));
+                    this.updateSafe('kpi-exp-real', this.fmt(expReal));
+                    this.updateSafe('kpi-exp-pend', this.fmt(expPend));
+
+                    this.updateSafe('kpi-projected', this.fmt(balProj));
+                    
+                    // CARD INTELIGENTE DE SALDO LIVRE
+                    let freeBalance = balReal - reserveAmount;
+                    this.updateSafe('kpi-free-balance', this.fmt(freeBalance));
+                    this.updateSafe('kpi-current-cash', this.fmt(balReal));
+                    this.updateSafe('kpi-reserve', `- ${this.fmt(reserveAmount)}`);
+                    this.updateSafe('sidebar-balance', this.fmt(freeBalance));
+
+                    this.renderChart(incReal, incPend, expReal, expPend);
+                    this.renderAgenda(monthTrans);
+                }
+                if(this.currentView === 'lancamentos') this.renderList(monthTrans);
+                
+                // LÓGICA DE CARTÕES
+                if(this.currentView === 'cartoes') {
+                    const grid = document.getElementById('cards-grid');
+                    if(grid) {
+                        let totalMonthInvoice = 0;
+                        grid.innerHTML = Store.cards.map(c => {
+                            const totalDebt = Store.transactions.filter(t => t.cardId == c.id && t.type === 'expense' && t.status === 'pending').reduce((a,b)=>a+b.amount,0);
+                            const monthInvoice = monthTrans.filter(t => t.cardId == c.id && t.type === 'expense').reduce((a,b)=>a+b.amount,0);
+                            const isPaid = monthTrans.filter(t => t.cardId == c.id && t.type === 'expense').every(t => t.status === 'paid') && monthInvoice > 0;
+                            const statusText = monthInvoice === 0 ? "Sem fatura" : (isPaid ? "Paga" : "Aberta");
+
+                            totalMonthInvoice += monthInvoice;
+                            const pct = Math.min(100, (totalDebt/c.limit)*100);
+
+                            return `<div class="card-visa p-6 rounded-[24px] h-60 flex flex-col justify-between shadow-xl relative overflow-hidden">
+                                <div class="relative z-10 flex justify-between items-start">
+                                    <div><p class="text-[10px] text-slate-300 font-bold uppercase tracking-widest">${c.name}</p><h3 class="text-2xl font-black mt-1">${this.fmt(monthInvoice)}</h3><p class="text-[10px] ${isPaid?'text-emerald-400':'text-slate-300'} font-bold uppercase mt-1">Fatura do Mês: ${statusText}</p></div>
+                                    <i class="fab fa-cc-visa text-3xl opacity-50"></i>
+                                </div>
+                                <div class="relative z-10">
+                                    <div class="flex justify-between text-[10px] font-bold mb-1 uppercase text-slate-400"><span>Limite Usado (Total)</span><span>${Math.round(pct)}%</span></div>
+                                    <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-indigo-400 transition-all duration-500" style="width: ${pct}%"></div></div>
+                                    <div class="flex justify-between mt-1 text-[10px] text-slate-400"><span>${this.fmt(totalDebt)} total</span><span>${this.fmt(c.limit)} limite</span></div>
+                                </div>
+                                <div class="relative z-10 flex justify-between items-end border-t border-white/10 pt-3">
+                                    <div><p class="text-[8px] text-slate-400 uppercase font-black">Fecha</p><p class="font-bold text-sm">Dia ${c.closing}</p></div>
+                                    <div class="text-right"><p class="text-[8px] text-slate-400 uppercase font-black">Vence</p><p class="font-bold text-sm">Dia ${c.due}</p></div>
+                                    <button onclick="App.deleteCard(${c.id})" class="absolute bottom-0 left-[50%] translate-x-[-50%] text-white/20 hover:text-white transition"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        this.updateSafe('cards-total-month', this.fmt(totalMonthInvoice));
+                    }
+                }
+            },
+
+            renderList(data) {
+                const tbody = document.getElementById('transactions-table');
+                if(!tbody) return;
+                const term = document.getElementById('search-input')?.value.toLowerCase() || '';
+                const sorted = data.filter(t => t.desc.toLowerCase().includes(term)).sort((a,b) => a.effectiveDate - b.effectiveDate);
+                
+                tbody.innerHTML = sorted.map(t => {
+                    const isInc = t.type === 'income';
+                    let stClass = t.status === 'paid' ? 'status-paid' : 'status-pending';
+                    if(t.status === 'pending' && t.effectiveDate < new Date().setHours(0,0,0,0)) stClass = 'status-overdue';
+                    
+                    return `<tr class="hover:bg-slate-50 border-b border-slate-50 transition">
+                        <td class="p-4 text-slate-500 font-medium">${t.effectiveDate.toLocaleDateString('pt-BR')}${t.displayNote?`<div class="text-[10px] italic">${t.displayNote}</div>`:''}</td>
+                        <td class="p-4 font-bold text-slate-800">${t.desc}</td>
+                        <td class="p-4 text-xs font-bold uppercase text-slate-400">${t.method==='credit'?`<i class="fas fa-credit-card"></i> ${t.originLabel}`:'Conta'}</td>
+                        <td class="p-4"><span class="status-pill ${stClass}">${t.status==='paid'?'Pago':'Pendente'}</span></td>
+                        <td class="p-4 text-right font-black ${isInc?'text-emerald-600':'text-slate-800'}">${isInc?'+':'-'} ${this.fmt(t.amount)}</td>
+                        <td class="p-4 text-center flex justify-center gap-2">
+                            <button onclick="App.toggleStatus(${t.id})" class="text-indigo-500 hover:text-indigo-700 mx-1"><i class="fas fa-check-circle"></i></button>
+                            <button onclick="Modal.open('transaction', ${t.id})" class="text-amber-500 hover:text-amber-700 mx-1"><i class="fas fa-edit"></i></button>
+                            <button onclick="App.deleteTransaction(${t.id})" class="text-rose-400 hover:text-rose-600 mx-1"><i class="fas fa-trash"></i></button>
+                        </td></tr>`;
+                }).join('');
+            },
+
+            renderAgenda(data) {
+                const el = document.getElementById('dashboard-agenda');
+                if(!el) return;
+                const upcoming = data.filter(t => t.status === 'pending').sort((a,b) => a.effectiveDate - b.effectiveDate);
+                el.innerHTML = upcoming.length ? upcoming.map(t => `<div class="flex justify-between items-center border-b border-slate-50 pb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 text-xs font-bold flex-col leading-none"><span>${t.effectiveDate.getDate()}</span></div><div><p class="text-sm font-bold text-slate-800">${t.desc}</p><p class="text-[10px] text-slate-400 uppercase font-bold">${t.originLabel}</p></div></div><span class="font-bold text-sm ${t.type==='income'?'text-emerald-600':'text-slate-800'}">${this.fmt(t.amount)}</span></div>`).join('') : '<p class="text-sm text-slate-400 italic">Nada pendente.</p>';
+            },
+
+            renderChart(incReal, incPend, expReal, expPend) {
+                const ctx = document.getElementById('mainChart');
+                if(!ctx) return;
+                if(window.myChart) window.myChart.destroy();
+                window.myChart = new Chart(ctx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Entradas', 'Saídas'],
+                        datasets: [
+                            { label: 'Realizado', data: [incReal, expReal], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 6, stack: 'Stack 0' },
+                            { label: 'Pendente', data: [incPend, expPend], backgroundColor: ['#a7f3d0', '#fecdd3'], borderRadius: 6, stack: 'Stack 0' }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, stacked: true }, x: { grid: { display: false }, stacked: true } } }
+                });
+            },
+
+            fmt(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        };
+
+        const DataMgr = {
+            export() { const d="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(Store)); const a=document.createElement('a'); a.href=d; a.download=`Fluxo360_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); },
+            import(e) { const r=new FileReader(); r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result); if(d.transactions){Store.transactions=d.transactions;Store.cards=d.cards||[];Store.save();location.reload();}}catch(er){alert("Erro");}}; r.readAsText(e.target.files[0]); },
+            nuke() { if(confirm("Apagar tudo?")) { localStorage.removeItem('f360_v3_data'); localStorage.removeItem('f360_v3_cards'); location.reload(); } },
+            seed() {
+                const y=new Date().getFullYear(), m=String(new Date().getMonth()+1).padStart(2,'0');
+                Store.cards=[{id:1,name:"Nubank",limit:5000,closing:10,due:17}];
+                Store.transactions=[
+                    {id:1,desc:"Saldo Inicial",amount:5000,date:`2023-12-01`,method:"money",status:"paid",type:"income",cardId:null,use5thDay:false},
+                    {id:2,desc:"Mercado",amount:450,date:`${y}-${m}-15`,method:"credit",status:"pending",type:"expense",cardId:1,use5thDay:false}
+                ]; Store.save(); location.reload();
+            }
+        };
+
+        window.onload = () => App.init();
+    </script>
+</body>
+</html>
