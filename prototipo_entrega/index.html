@@ -7,55 +7,35 @@
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
     <script>
-        // Global Error Handler para silenciar ruído de extensões
-        window.onerror = function(message, source, lineno, colno, error) {
-            // Ignora erros conhecidos de extensões ou scripts de terceiros
-            if (message && (message.includes('checkout popup config') || message.includes('core.js'))) {
-                console.warn('[Ignored Extension Error]', message);
-                return true; 
-            }
-            // Ignora erros de scripts fora da origem (CORS/Extensões)
-            if (source && !source.includes(window.location.origin) && !source.includes('localhost')) {
-                return true;
-            }
-            console.error('[App Error]', message);
-            return false;
-        };
-
-        // Handler para Promises não tratadas (ex: async functions em extensões)
-        window.addEventListener('unhandledrejection', function(event) {
-            const reason = event.reason ? (event.reason.message || event.reason) : '';
-            if (reason && (reason.toString().includes('checkout popup config') || reason.toString().includes('core.js'))) {
-                event.preventDefault(); // Impede que apareça no console como erro vermelho
-                console.warn('[Ignored Extension Promise]', reason);
-            }
-        });
-
-        // Tailwind Config unificada
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
                         primary: '#3b82f6',
                         secondary: '#64748b'
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
+                    }
                 }
             }
         }
     </script>
     <link rel="stylesheet" href="style.css">
+    <script>
+        try {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'sans-serif'],
+                        },
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Erro ao carregar a configuração do Tailwind:', e);
+        }
+    </script>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans pb-20">
-
-    <!-- Loading Overlay Global -->
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex flex-col items-center justify-center text-white transition-opacity duration-300">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
-        <h2 class="text-xl font-bold">Iniciando Sistema...</h2>
-        <p class="text-sm text-gray-400 mt-2">Sincronizando dados...</p>
-    </div>
 
     <main id="app-content" class="p-4">
         <!-- Botões de Ajuda e Configurações -->
@@ -84,8 +64,6 @@
             </header>
 
             <!-- Main Dashboard Section -->
-            <div id="consultant-insights" class="mb-6 space-y-4"></div>
-
             <div class="bg-white rounded-xl shadow-lg p-6 mb-6 w-full">
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 text-center">
                     <div class="bg-blue-500 text-white p-4 rounded-xl shadow-md help-tooltip">
@@ -273,24 +251,6 @@
                         <input type="text" id="categoria" placeholder="Ex: Alimentação, Lazer" list="categorias-list" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2" required>
                         <datalist id="categorias-list"></datalist>
                     </div>
-
-                    <div>
-                        <label for="essentiality" class="block text-sm font-medium text-gray-700">Essencialidade
-                             <div class="help-tooltip inline-block">
-                                <span class="help-icon">?</span>
-                                <span class="tooltip-text">
-                                    <strong>Classificação de Necessidade</strong><br>
-                                    Ajuda a IA a identificar onde você pode economizar.
-                                </span>
-                            </div>
-                        </label>
-                        <select id="essentiality" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50 p-2">
-                            <option value="ESSENCIAL">Essencial (Moradia, Saúde, Alimentação Básica)</option>
-                            <option value="NECESSARIO">Necessário (Internet, Transporte)</option>
-                            <option value="SUPERFLUO">Supérfluo (Lazer, Delivery, Streaming Extra)</option>
-                        </select>
-                    </div>
-
                     <div id="cartaoContainer" class="hidden">
                         <label for="cartaoCredito" class="block text-sm font-medium text-gray-700">Cartão de Crédito
                             <div class="help-tooltip inline-block">
@@ -1394,68 +1354,42 @@
         </div>
     </div>
 
-    <!-- Modal para Adicionar/Editar Cartão (Novo) -->
-    <div id="modalCartao" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-20">
-        <div class="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-            <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Gerenciar Cartão</h3>
-            <form id="formCartao" class="space-y-4">
-                <input type="hidden" id="cartaoIdEdit">
-                
-                <div>
-                    <label for="nomeCartao" class="block text-sm font-medium text-gray-700">Nome do Cartão</label>
-                    <input type="text" id="nomeCartao" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="Ex: Nubank, Visa Platinum" required>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="limiteCartao" class="block text-sm font-medium text-gray-700">Limite (R$)</label>
-                        <input type="number" id="limiteCartao" step="0.01" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
-                    </div>
-                    <div>
-                        <label for="fechamentoCartao" class="block text-sm font-medium text-gray-700">Dia Fechamento</label>
-                        <input type="number" id="fechamentoCartao" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
-                    </div>
-                    <div>
-                        <label for="vencimentoCartao" class="block text-sm font-medium text-gray-700">Dia Vencimento</label>
-                        <input type="number" id="vencimentoCartao" min="1" max="31" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" required>
-                    </div>
-                     <div>
-                        <label for="corCartao" class="block text-sm font-medium text-gray-700">Cor</label>
-                        <input type="color" id="corCartao" class="mt-1 block w-full h-10 rounded-md border-gray-300 shadow-sm" value="#3b82f6">
-                    </div>
-                </div>
-
-                <div>
-                    <label for="iconeCartao" class="block text-sm font-medium text-gray-700">Ícone</label>
-                    <select id="iconeCartao" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
-                        <option value="credit-card">Cartão Padrão</option>
-                        <option value="star">Estrela</option>
-                        <option value="wallet">Carteira</option>
-                        <option value="shopping-bag">Compras</option>
-                    </select>
-                </div>
-
-                <div class="flex items-center mt-2">
-                    <input type="checkbox" id="ativoCartao" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" checked>
-                    <label for="ativoCartao" class="ml-2 block text-sm text-gray-900">Cartão Ativo</label>
-                </div>
-                
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-4">
-                    <button type="button" id="btnCancelarCartao" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-medium">Cancelar</button>
-                    <button type="submit" id="btnSubmitCartao" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium shadow-md">Salvar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Capacitor Scripts (Desativados para versão Web/Docker) -->
-    <!-- <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script> -->
-    <!-- <script src="https://unpkg.com/@capacitor-community/sqlite@latest/dist/capacitor-sqlite.js"></script> -->
-
-    <!-- External Libs -->
+    <!-- Capacitor -->
+    <script src="https://unpkg.com/@capacitor/core@latest/dist/capacitor.js"></script>
+    <script src="https://unpkg.com/@capacitor-community/sqlite@latest/dist/capacitor-sqlite.js"></script>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Ponto de Entrada da Aplicação (Módulo ES6) -->
-    <script type="module" src="js/main.js"></script>
+    <!-- Configurações Globais -->
+    <script src="js/config/AppConfig.js"></script>
+    
+    <!-- Utilitários -->
+    <script src="js/utils/DateUtils.js"></script>
+    <script src="js/utils/CurrencyUtils.js"></script>
+    <script src="js/utils/ValidationUtils.js"></script>
+    <script src="js/utils/ChartUtils.js"></script>
+    
+    <!-- Modelos -->
+    <script src="js/models/Transacao.js"></script>
+    <script src="js/models/Cartao.js"></script>
+    <script src="js/models/Categoria.js"></script>
+    
+    <!-- Serviços -->
+    <script src="js/services/StorageService.js"></script>
+    <script src="js/services/TransacaoService.js"></script>
+    <script src="js/services/CartaoService.js"></script>
+    <script src="js/services/CategoriaService.js"></script>
+    
+    <!-- Controladores -->
+    <script src="js/controllers/TransacaoController.js"></script>
+    <script src="js/controllers/CartaoController.js"></script>
+    <script src="js/controllers/DashboardController.js"></script>
+    
+    <!-- Inicializador do Sistema Modular -->
+    <script src="js/AppInitializer.js"></script>
+    
+    <!-- Script principal (legado - será removido após migração completa) -->
+    <script src="script.js" defer></script>
 </body>
 </html>

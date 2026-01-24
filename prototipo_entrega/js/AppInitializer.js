@@ -18,13 +18,6 @@ class AppInitializer {
      * Inicializa a aplicação
      */
     async inicializar() {
-        // Inicializa Camada de Dados (ApiProvider via StorageProvider)
-        if (window.StorageProvider) {
-            await window.StorageProvider.init(); // Assumindo global ou import
-        } else {
-            // Em ambiente módulo, importaríamos, mas aqui parece rodar no browser global ou via modules
-            // Tentaremos carregar via import dinâmico se necessário, mas o código acima sugere uso de classes
-        }
         console.log('🚀 Iniciando Sistema de Controle Financeiro...');
         
         try {
