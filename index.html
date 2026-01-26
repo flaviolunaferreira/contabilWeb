@@ -43,15 +43,25 @@
             pointer-events: none;
         }
 
-        .status-pill { padding: 4px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
-        .status-paid { background: #dcfce7; color: #166534; }
-        .status-pending { background: #fef9c3; color: #854d0e; }
-        .status-overdue { background: #fee2e2; color: #991b1b; }
+        .status-pill { padding: 6px 12px; border-radius: 99px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-paid { background: #22c55e; color: white; }
+        .status-pending { background: #fbbf24; color: #78350f; }
+        .status-overdue { background: #ef4444; color: white; }
         
         /* SCROLL PERSONALIZADO */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+
+        /* TABELA DE LANÇAMENTOS - VISIBILIDADE APRIMORADA */
+        #transactions-table tr:nth-child(even) { background-color: #f8fafc; }
+        #transactions-table tr:nth-child(odd) { background-color: #ffffff; }
+        #transactions-table tr:hover { background-color: #e0e7ff !important; transform: scale(1.005); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15); }
+        #transactions-table tr { border-left: 4px solid transparent; transition: all 0.2s ease; }
+        #transactions-table tr:hover { border-left-color: #4f46e5; }
+        #transactions-table td { border-bottom: 2px solid #e2e8f0; }
+        #transactions-table .group-header { background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important; color: white !important; }
+        #transactions-table .group-footer { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%) !important; border-top: 3px solid #6366f1 !important; border-bottom: 3px solid #6366f1 !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -95,6 +105,12 @@
                 <button onclick="App.changeDate(-1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-left text-slate-400"></i></button>
                 <h2 id="header-date" class="text-lg font-extrabold text-slate-800 min-w-[160px] text-center capitalize">--</h2>
                 <button onclick="App.changeDate(1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-right text-slate-400"></i></button>
+                <div class="ml-4 flex items-center gap-2">
+                    <i class="fas fa-filter text-slate-400 text-sm"></i>
+                    <select id="category-filter" onchange="App.render()" class="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 bg-white focus:outline-none focus:border-indigo-500 hover:bg-slate-50 transition">
+                        <option value="">Todas Categorias</option>
+                    </select>
+                </div>
             </div>
             <div class="flex gap-2">
                 <button onclick="Modal.open('card')" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm transition">
@@ -229,14 +245,15 @@
                 </div>
                 <div class="glass-card overflow-hidden">
                     <table class="w-full text-left text-sm">
-                        <thead class="bg-slate-50 border-b border-slate-100 text-slate-500">
+                        <thead class="bg-gradient-to-r from-slate-700 to-slate-800 border-b-4 border-indigo-500 text-white">
                             <tr>
-                                <th class="p-4 font-bold">Data Efetiva</th>
-                                <th class="p-4 font-bold">Descrição</th>
-                                <th class="p-4 font-bold">Método</th>
-                                <th class="p-4 font-bold">Status</th>
-                                <th class="p-4 font-bold text-right">Valor</th>
-                                <th class="p-4 font-bold text-center">Ações</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider">Data Efetiva</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider">Descrição</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider">Categoria</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider">Método</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider">Status</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider text-right">Valor</th>
+                                <th class="p-4 font-black uppercase text-xs tracking-wider text-center">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="transactions-table"></tbody>
@@ -278,6 +295,14 @@
             <div class="space-y-4">
                 <input type="hidden" id="t-id">
                 <input id="t-desc" type="text" placeholder="Descrição" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
+                
+                <div class="relative">
+                    <input id="t-category" type="text" list="category-suggestions" placeholder="Digite a categoria (ex: Alimentação, Transporte...)" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600 focus:ring-2 focus:ring-indigo-300">
+                    <datalist id="category-suggestions"></datalist>
+                    <div class="absolute right-4 top-4 text-xs text-slate-400 pointer-events-none">
+                        <i class="fas fa-tag"></i>
+                    </div>
+                </div>
                 
                 <div class="grid grid-cols-2 gap-4">
                     <input id="t-amount" type="number" step="0.01" placeholder="R$ 0,00" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
@@ -367,9 +392,30 @@
         const Store = {
             transactions: JSON.parse(localStorage.getItem('f360_v3_data')) || [],
             cards: JSON.parse(localStorage.getItem('f360_v3_cards')) || [],
+            categories: JSON.parse(localStorage.getItem('f360_v3_categories')) || [
+                'Alimentação',
+                'Transporte',
+                'Saúde',
+                'Educação',
+                'Lazer',
+                'Moradia',
+                'Vestuário',
+                'Outros'
+            ],
             save() {
                 localStorage.setItem('f360_v3_data', JSON.stringify(this.transactions));
                 localStorage.setItem('f360_v3_cards', JSON.stringify(this.cards));
+                localStorage.setItem('f360_v3_categories', JSON.stringify(this.categories));
+            },
+            addCategory(name) {
+                const trimmed = name.trim();
+                if (trimmed && !this.categories.includes(trimmed)) {
+                    this.categories.push(trimmed);
+                    this.categories.sort();
+                    this.save();
+                    return true;
+                }
+                return false;
             }
         };
 
@@ -385,6 +431,8 @@
                     const sel = document.getElementById('t-card-id');
                     sel.innerHTML = Store.cards.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
                     
+                    this.populateCategorySuggestions();
+                    
                     if (editId) {
                         const t = Store.transactions.find(x => x.id === editId);
                         document.getElementById('modal-title').innerText = "Editar Transação";
@@ -394,6 +442,7 @@
                         document.getElementById('t-date').value = t.date;
                         document.getElementById('t-method').value = t.method;
                         if(t.cardId) document.getElementById('t-card-id').value = t.cardId;
+                        if(t.category) document.getElementById('t-category').value = t.category;
                         
                         const radios = document.getElementsByName('t-status');
                         for(let r of radios) r.checked = (r.value === t.status);
@@ -410,6 +459,7 @@
                         document.getElementById('t-date').valueAsDate = new Date();
                         document.getElementById('t-repeat').value = "1";
                         document.getElementById('t-dia-util').checked = false;
+                        document.getElementById('t-category').value = "";
                         this.setType('expense');
                         document.getElementById('recurrence-wrapper').classList.remove('hidden');
                     }
@@ -443,6 +493,12 @@
                     cw.classList.add('hidden');
                     sw.classList.remove('opacity-50', 'pointer-events-none');
                 }
+            },
+            populateCategorySuggestions() {
+                const datalist = document.getElementById('category-suggestions');
+                if (datalist) {
+                    datalist.innerHTML = Store.categories.map(cat => `<option value="${cat}">`).join('');
+                }
             }
         };
 
@@ -452,7 +508,17 @@
             currentView: 'dashboard',
             processedTransactions: [],
 
-            init() { this.render(); },
+            init() { this.populateCategoryFilter(); this.render(); },
+            
+            populateCategoryFilter() {
+                const filter = document.getElementById('category-filter');
+                if (filter) {
+                    const currentValue = filter.value;
+                    filter.innerHTML = '<option value="">Todas Categorias</option>' + 
+                        Store.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                    if (currentValue) filter.value = currentValue;
+                }
+            },
             navigate(view) {
                 this.currentView = view;
                 document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -473,10 +539,17 @@
                 const status = document.querySelector('input[name="t-status"]:checked').value;
                 const use5thDay = document.getElementById('t-dia-util').checked;
                 const repeatCount = parseInt(document.getElementById('t-repeat').value) || 1;
+                const category = document.getElementById('t-category').value.trim();
 
                 if (!desc || isNaN(amount) || !dateVal || !Modal.selectedType) return alert("Preencha todos os campos!");
 
-                const baseT = { amount, method, status, type: Modal.selectedType, cardId: method === 'credit' ? cardId : null, use5thDay: Modal.selectedType === 'income' ? use5thDay : false };
+                // Adicionar categoria automaticamente se for nova
+                if (category && !Store.categories.includes(category)) {
+                    Store.addCategory(category);
+                    this.populateCategoryFilter();
+                }
+
+                const baseT = { amount, method, status, type: Modal.selectedType, cardId: method === 'credit' ? cardId : null, use5thDay: Modal.selectedType === 'income' ? use5thDay : false, category: category || null };
 
                 if (id) {
                     const idx = Store.transactions.findIndex(t => t.id == id);
@@ -557,7 +630,12 @@
                 const m = this.currentDate.getMonth(), y = this.currentDate.getFullYear();
                 this.updateSafe('header-date', this.currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }));
 
-                const monthTrans = this.processedTransactions.filter(t => t.effectiveDate.getMonth() === m && t.effectiveDate.getFullYear() === y);
+                const categoryFilter = document.getElementById('category-filter')?.value || '';
+                let monthTrans = this.processedTransactions.filter(t => t.effectiveDate.getMonth() === m && t.effectiveDate.getFullYear() === y);
+                
+                if (categoryFilter) {
+                    monthTrans = monthTrans.filter(t => t.category === categoryFilter);
+                }
 
                 let incReal = 0, incPend = 0, expReal = 0, expPend = 0;
                 monthTrans.forEach(t => {
@@ -740,12 +818,13 @@
                     let stClass = t.status === 'paid' ? 'status-paid' : 'status-pending';
                     if(t.status === 'pending' && t.effectiveDate < new Date().setHours(0,0,0,0)) stClass = 'status-overdue';
                     
-                    return `<tr class="hover:bg-slate-50 border-b border-slate-50 transition">
-                        <td class="p-4 text-slate-500 font-medium">${t.effectiveDate.toLocaleDateString('pt-BR')}${t.displayNote?`<div class="text-[10px] italic">${t.displayNote}</div>`:''}</td>
-                        <td class="p-4 font-bold text-slate-800">${t.desc}</td>
-                        <td class="p-4 text-xs font-bold uppercase text-slate-400">${t.method==='credit'?`<i class="fas fa-credit-card"></i> ${t.originLabel}`:'Conta'}</td>
+                    return `<tr>
+                        <td class="p-4 text-slate-700 font-bold">${t.effectiveDate.toLocaleDateString('pt-BR')}${t.displayNote?`<div class="text-[10px] italic text-slate-500">${t.displayNote}</div>`:''}</td>
+                        <td class="p-4 font-extrabold text-slate-900">${t.desc}</td>
+                        <td class="p-4">${t.category ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-black uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">Sem categoria</span>'}</td>
+                        <td class="p-4 text-xs font-bold uppercase text-slate-600">${t.method==='credit'?`<i class="fas fa-credit-card text-amber-500"></i> ${t.originLabel}`:'<i class="fas fa-wallet text-emerald-500"></i> Conta'}</td>
                         <td class="p-4"><span class="status-pill ${stClass}">${t.status==='paid'?'Pago':'Pendente'}</span></td>
-                        <td class="p-4 text-right font-black ${isInc?'text-emerald-600':'text-slate-800'}">${isInc?'+':'-'} ${this.fmt(t.amount)}</td>
+                        <td class="p-4 text-right font-black text-lg ${isInc?'text-emerald-600':'text-rose-600'}">${isInc?'+':'-'} ${this.fmt(t.amount)}</td>
                         <td class="p-4 text-center flex justify-center gap-2">
                             <button onclick="App.toggleStatus(${t.id})" class="text-indigo-500 hover:text-indigo-700 mx-1"><i class="fas fa-check-circle"></i></button>
                             <button onclick="Modal.open('transaction', ${t.id})" class="text-amber-500 hover:text-amber-700 mx-1"><i class="fas fa-edit"></i></button>
@@ -795,9 +874,9 @@
                         const movimento = g.income - g.expense;
                         saldoAcumulado += movimento;
                         
-                        html += `<tr class="bg-slate-100"><td colspan="6" class="p-2 font-bold text-slate-600 text-xs uppercase tracking-wider">${g.label}</td></tr>`;
+                        html += `<tr class="group-header"><td colspan="7" class="p-4 font-black text-sm uppercase tracking-wider"><i class="fas fa-calendar-alt mr-2"></i>${g.label}</td></tr>`;
                         html += g.items.map(t => createRow(t)).join('');
-                        html += `<tr class="bg-indigo-50/50 border-t-2 border-indigo-200"><td colspan="4" class="p-3 text-right text-xs text-slate-500">Receitas: <span class="text-emerald-600 font-bold">${this.fmt(g.income)}</span> | Despesas: <span class="text-rose-600 font-bold">${this.fmt(g.expense)}</span></td><td colspan="2" class="p-3 font-bold text-right text-sm ${saldoAcumulado>=0?'text-emerald-600':'text-rose-600'}">Saldo: ${this.fmt(saldoAcumulado)}</td></tr>`;
+                        html += `<tr class="group-footer"><td colspan="5" class="p-4 text-right font-bold text-sm text-slate-700">Receitas: <span class="text-emerald-600 font-black text-base">${this.fmt(g.income)}</span> <span class="mx-2">|</span> Despesas: <span class="text-rose-600 font-black text-base">${this.fmt(g.expense)}</span></td><td colspan="2" class="p-4 font-black text-right text-lg ${saldoAcumulado>=0?'text-emerald-600':'text-rose-600'}"><i class="fas fa-calculator mr-2"></i>Saldo: ${this.fmt(saldoAcumulado)}</td></tr>`;
                     });
                     tbody.innerHTML = html;
                 }
