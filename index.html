@@ -1294,10 +1294,11 @@
                 const m = this.currentDate.getMonth(), y = this.currentDate.getFullYear();
                 const daysInMonth = new Date(y, m + 1, 0).getDate();
                 const labels = [];
+                const startOfMonth = new Date(y, m, 1);
                 
-                // Obter todas as categorias únicas
+                // Obter todas as categorias únicas (do mês atual e anteriores)
                 const categoriesSet = new Set();
-                monthTrans.forEach(t => {
+                this.processedTransactions.forEach(t => {
                     const cat = t.category || 'Sem Categoria';
                     categoriesSet.add(cat);
                 });
@@ -1316,10 +1317,21 @@
                     const color = colors[idx % colors.length];
                     const colorLight = color + '80'; // versão clara
                     
+                    // Calcular saldo inicial (tudo antes do mês atual desta categoria)
+                    let initialReal = 0;
+                    let initialTotal = 0;
+                    
+                    this.processedTransactions.forEach(t => {
+                        if (t.effectiveDate < startOfMonth && (t.category || 'Sem Categoria') === cat) {
+                            initialTotal += t.amount;
+                            if (t.status === 'paid') initialReal += t.amount;
+                        }
+                    });
+                    
                     const acumReal = [];
                     const acumTotal = [];
-                    let accReal = 0;
-                    let accTotal = 0;
+                    let accReal = initialReal;
+                    let accTotal = initialTotal;
                     
                     for(let day = 1; day <= daysInMonth; day++) {
                         const dayTrans = monthTrans.filter(t => 
