@@ -156,9 +156,52 @@
                     <div class="glass-card p-6 flex flex-col h-[350px]">
                         <h3 class="font-bold text-slate-800 mb-4 shrink-0">Próximos Vencimentos</h3>
                         <div id="dashboard-agenda" class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3">
-                            </div>
+                        </div>
                     </div>
                 </div>
+
+            <!-- Nova Seção de Agrupamento -->
+            <div class="glass-card p-6 mt-6">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                    <div>
+                        <h3 id="tituloResumo" class="font-bold text-slate-800 text-lg">Resumo por Descrição</h3>
+                        <p class="text-xs text-slate-400 font-bold uppercase">Visão detalhada do período</p>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Prever Saldo para o dia</label>
+                            <input type="date" id="preverSaldoData" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-indigo-500" onchange="App.render()">
+                        </div>
+                        
+                        <div class="flex flex-col">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Agrupar Demonstrativo Por</label>
+                            <select id="agrupamentoPeriodo" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-indigo-500" onchange="App.render()">
+                                <option value="descricao">Por Descrição</option>
+                                <option value="dia">Por Dia</option>
+                                <option value="semana">Por Semana</option>
+                                <option value="mes">Por Mês</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 border-b border-slate-100 text-slate-500">
+                            <tr>
+                                <th id="headerPeriodo" class="p-4 font-bold rounded-tl-xl">Descrição</th>
+                                <th class="p-4 font-bold text-center">Qtd</th>
+                                <th class="p-4 font-bold text-right text-emerald-600">Entradas</th>
+                                <th class="p-4 font-bold text-right text-rose-600">Saídas</th>
+                                <th class="p-4 font-bold text-right text-indigo-600">Resultado</th>
+                                <th class="p-4 font-bold text-right rounded-tr-xl">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-summary-table"></tbody>
+                    </table>
+                </div>
+            </div>
             </div>
 
             <div id="view-cartoes" class="hidden space-y-8">
@@ -175,7 +218,14 @@
             <div id="view-lancamentos" class="hidden space-y-6">
                 <div class="flex justify-between items-end">
                     <h2 class="text-2xl font-black text-slate-800">Extrato Detalhado</h2>
-                    <input type="text" id="search-input" onkeyup="App.renderList()" placeholder="Buscar..." class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                    <div class="flex gap-2">
+                         <select id="agrupamentoRelatorio" onchange="App.render()" class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="none">Sem Agrupamento</option>
+                            <option value="dia">Por Dia</option>
+                            <option value="semana">Por Semana</option>
+                        </select>
+                        <input type="text" id="search-input" onkeyup="App.renderList()" placeholder="Buscar..." class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
                 </div>
                 <div class="glass-card overflow-hidden">
                     <table class="w-full text-left text-sm">
@@ -475,13 +525,27 @@
                     if (t.method === 'credit' && t.cardId) {
                         const card = Store.cards.find(c => c.id == t.cardId);
                         if (card) {
-                            const originalDay = effectiveDate.getDate();
+                            const originalDate = new Date(t.date + 'T00:00:00');
+                            const originalDay = originalDate.getDate();
+                            
+                            // Correção Crítica de Data:
+                            // 1. Resetar para dia 1 para evitar pular mês incorretamente (ex: 30/Jan -> Fev sem dia 30 -> Março)
+                            effectiveDate.setDate(1);
+
+                            // 2. Se a compra foi após o fechamento, joga para a próxima competência
                             if (originalDay >= card.closing) {
                                 effectiveDate.setMonth(effectiveDate.getMonth() + 1);
                             }
+
+                            // 3. Se a data de vencimento é menor que a de fechamento (ex: Fecha 28, Vence 05),
+                            // significa que o vencimento ocorre no mês seguinte ao da competência da fatura.
+                            if (card.due < card.closing) {
+                                effectiveDate.setMonth(effectiveDate.getMonth() + 1);
+                            }
+
                             effectiveDate.setDate(card.due);
                             originLabel = card.name;
-                            displayNote = `Compra em: ${new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+                            displayNote = `Compra em: ${originalDate.toLocaleDateString('pt-BR')}`;
                         }
                     }
                     return { ...t, effectiveDate, displayNote, originLabel };
@@ -515,7 +579,12 @@
                 // SALDOS ACUMULADOS
                 let balReal = 0; 
                 let balProj = 0; 
-                const endOfViewMonth = new Date(y, m + 1, 0, 23, 59, 59);
+                let endOfViewMonth = new Date(y, m + 1, 0, 23, 59, 59);
+
+                const dateInput = document.getElementById('preverSaldoData');
+                if (dateInput && dateInput.value) {
+                    endOfViewMonth = new Date(dateInput.value + 'T23:59:59');
+                }
 
                 this.processedTransactions.forEach(t => {
                     if (t.status === 'paid') {
@@ -544,8 +613,9 @@
                     this.updateSafe('kpi-reserve', `- ${this.fmt(reserveAmount)}`);
                     this.updateSafe('sidebar-balance', this.fmt(freeBalance));
 
-                    this.renderChart(incReal, incPend, expReal, expPend);
+                    this.renderChart(monthTrans);
                     this.renderAgenda(monthTrans);
+                    this.renderDashboardSummary(monthTrans);
                 }
                 if(this.currentView === 'lancamentos') this.renderList(monthTrans);
                 
@@ -585,13 +655,87 @@
                 }
             },
 
+            renderDashboardSummary(data) {
+                const grouping = document.getElementById('agrupamentoPeriodo')?.value || 'descricao';
+                const container = document.getElementById('dashboard-summary-table');
+                if (!container) return;
+
+                this.updateSafe('tituloResumo', 
+                    grouping === 'dia' ? 'Demonstrativo por Dia' : 
+                    grouping === 'semana' ? 'Demonstrativo por Semana' : 
+                    grouping === 'mes' ? 'Demonstrativo por Mês' : 'Resumo por Descrição'
+                );
+                
+                this.updateSafe('headerPeriodo', grouping === 'descricao' ? 'Descrição' : 'Período');
+
+                let groups = {};
+                
+                data.forEach(t => {
+                    let key, sortKey;
+                    if (grouping === 'dia') {
+                        key = t.effectiveDate.getDate();
+                        sortKey = key;
+                    } else if (grouping === 'semana') {
+                        const firstDay = new Date(t.effectiveDate.getFullYear(), t.effectiveDate.getMonth(), 1).getDay();
+                        const weekNo = Math.ceil((t.effectiveDate.getDate() + firstDay) / 7);
+                        key = `Semana ${weekNo}`;
+                        sortKey = weekNo;
+                    } else if (grouping === 'mes') {
+                        key = t.effectiveDate.toLocaleString('pt-BR', { month: 'long' });
+                        sortKey = t.effectiveDate.getMonth();
+                    } else {
+                        key = t.desc;
+                        sortKey = key;
+                    }
+
+                    if (!groups[key]) groups[key] = { label: grouping==='dia' ? `Dia ${key}` : key, count: 0, income: 0, expense: 0, balance: 0, paid: 0, pending: 0, sortInfo: sortKey };
+                    
+                    groups[key].count++;
+                    const amt = t.amount;
+                    if (t.type === 'income') {
+                        groups[key].income += amt;
+                        groups[key].balance += amt;
+                    } else {
+                        groups[key].expense += amt;
+                        groups[key].balance -= amt;
+                    }
+                    if (t.status === 'paid') groups[key].paid += amt; else groups[key].pending += amt;
+                });
+
+                let sortedKeys = Object.keys(groups).sort((a,b) => {
+                    if(grouping === 'descricao') return a.localeCompare(b);
+                    return groups[a].sortInfo - groups[b].sortInfo;
+                });
+                
+                container.innerHTML = sortedKeys.map(k => {
+                    const g = groups[k];
+                    return `<tr class="border-b border-slate-50 hover:bg-indigo-50/30 transition">
+                        <td class="p-4 font-bold text-slate-700">${g.label}</td>
+                        <td class="p-4 text-center font-bold text-slate-400">${g.count}</td>
+                        <td class="p-4 text-right font-bold text-emerald-600">${this.fmt(g.income)}</td>
+                        <td class="p-4 text-right font-bold text-rose-600">${this.fmt(g.expense)}</td>
+                        <td class="p-4 text-right font-black ${g.balance >= 0 ? 'text-indigo-600' : 'text-rose-600'}">${this.fmt(g.balance)}</td>
+                         <td class="p-4 text-right text-xs font-bold text-slate-400">
+                             <div class="flex flex-col text-[10px]">
+                                 <div class="flex justify-between w-full gap-2"><span>Pg:</span> <span class="text-emerald-500">${this.fmt(g.paid)}</span></div>
+                                 <div class="flex justify-between w-full gap-2"><span>Ab:</span> <span class="text-amber-500">${this.fmt(g.pending)}</span></div>
+                             </div>
+                         </td>
+                    </tr>`;
+                }).join('');
+            },
+
             renderList(data) {
                 const tbody = document.getElementById('transactions-table');
                 if(!tbody) return;
-                const term = document.getElementById('search-input')?.value.toLowerCase() || '';
-                const sorted = data.filter(t => t.desc.toLowerCase().includes(term)).sort((a,b) => a.effectiveDate - b.effectiveDate);
                 
-                tbody.innerHTML = sorted.map(t => {
+                const groupBy = document.getElementById('agrupamentoRelatorio')?.value || 'none';
+                const term = document.getElementById('search-input')?.value.toLowerCase() || '';
+                
+                let sorted = data.filter(t => t.desc.toLowerCase().includes(term));
+                sorted.sort((a,b) => a.effectiveDate - b.effectiveDate);
+
+                const createRow = (t) => {
                     const isInc = t.type === 'income';
                     let stClass = t.status === 'paid' ? 'status-paid' : 'status-pending';
                     if(t.status === 'pending' && t.effectiveDate < new Date().setHours(0,0,0,0)) stClass = 'status-overdue';
@@ -607,7 +751,56 @@
                             <button onclick="Modal.open('transaction', ${t.id})" class="text-amber-500 hover:text-amber-700 mx-1"><i class="fas fa-edit"></i></button>
                             <button onclick="App.deleteTransaction(${t.id})" class="text-rose-400 hover:text-rose-600 mx-1"><i class="fas fa-trash"></i></button>
                         </td></tr>`;
-                }).join('');
+                };
+
+                if (groupBy === 'none') {
+                    tbody.innerHTML = sorted.map(t => createRow(t)).join('');
+                } else {
+                    let groups = {};
+                    sorted.forEach(t => {
+                        let key, label;
+                        if (groupBy === 'dia') {
+                            key = t.effectiveDate.toISOString().split('T')[0];
+                            label = t.effectiveDate.toLocaleDateString('pt-BR');
+                        } else if (groupBy === 'semana') {
+                            const firstDay = new Date(t.effectiveDate.getFullYear(), t.effectiveDate.getMonth(), 1).getDay();
+                            const weekNo = Math.ceil((t.effectiveDate.getDate() + firstDay) / 7);
+                            key = `${t.effectiveDate.getFullYear()}-${t.effectiveDate.getMonth()}-w${weekNo}`;
+                            label = `Semana ${weekNo}`;
+                        }
+                        
+                        if (!groups[key]) groups[key] = { label, items: [], income: 0, expense: 0, sortKey: t.effectiveDate.getTime() };
+                        groups[key].items.push(t);
+                        if (t.type === 'income') groups[key].income += t.amount;
+                        else groups[key].expense += t.amount;
+                    });
+                    
+                    const keys = Object.keys(groups).sort((a,b) => groups[a].sortKey - groups[b].sortKey);
+
+                    // Calcular saldo inicial (tudo que aconteceu antes do primeiro período)
+                    let saldoAcumulado = 0;
+                    if (keys.length > 0) {
+                        const firstDate = new Date(groups[keys[0]].sortKey);
+                        this.processedTransactions.forEach(t => {
+                            if (t.effectiveDate < firstDate) {
+                                if (t.type === 'income') saldoAcumulado += t.amount;
+                                else saldoAcumulado -= t.amount;
+                            }
+                        });
+                    }
+
+                    let html = '';
+                    keys.forEach(key => {
+                        const g = groups[key];
+                        const movimento = g.income - g.expense;
+                        saldoAcumulado += movimento;
+                        
+                        html += `<tr class="bg-slate-100"><td colspan="6" class="p-2 font-bold text-slate-600 text-xs uppercase tracking-wider">${g.label}</td></tr>`;
+                        html += g.items.map(t => createRow(t)).join('');
+                        html += `<tr class="bg-indigo-50/50 border-t-2 border-indigo-200"><td colspan="4" class="p-3 text-right text-xs text-slate-500">Receitas: <span class="text-emerald-600 font-bold">${this.fmt(g.income)}</span> | Despesas: <span class="text-rose-600 font-bold">${this.fmt(g.expense)}</span></td><td colspan="2" class="p-3 font-bold text-right text-sm ${saldoAcumulado>=0?'text-emerald-600':'text-rose-600'}">Saldo: ${this.fmt(saldoAcumulado)}</td></tr>`;
+                    });
+                    tbody.innerHTML = html;
+                }
             },
 
             renderAgenda(data) {
@@ -617,20 +810,108 @@
                 el.innerHTML = upcoming.length ? upcoming.map(t => `<div class="flex justify-between items-center border-b border-slate-50 pb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 text-xs font-bold flex-col leading-none"><span>${t.effectiveDate.getDate()}</span></div><div><p class="text-sm font-bold text-slate-800">${t.desc}</p><p class="text-[10px] text-slate-400 uppercase font-bold">${t.originLabel}</p></div></div><span class="font-bold text-sm ${t.type==='income'?'text-emerald-600':'text-slate-800'}">${this.fmt(t.amount)}</span></div>`).join('') : '<p class="text-sm text-slate-400 italic">Nada pendente.</p>';
             },
 
-            renderChart(incReal, incPend, expReal, expPend) {
+            renderChart(monthTrans) {
                 const ctx = document.getElementById('mainChart');
                 if(!ctx) return;
                 if(window.myChart) window.myChart.destroy();
+                
+                const m = this.currentDate.getMonth(), y = this.currentDate.getFullYear();
+                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                const labels = [];
+                const incRealAcum = [];
+                const incTotalAcum = [];
+                const expRealAcum = [];
+                const expTotalAcum = [];
+                
+                // Calcular saldo inicial (tudo antes do mês atual)
+                let incRealInicial = 0, incTotalInicial = 0;
+                let expRealInicial = 0, expTotalInicial = 0;
+                const startOfMonth = new Date(y, m, 1);
+                
+                this.processedTransactions.forEach(t => {
+                    if (t.effectiveDate < startOfMonth) {
+                        if (t.type === 'income') {
+                            incTotalInicial += t.amount;
+                            if (t.status === 'paid') incRealInicial += t.amount;
+                        } else {
+                            expTotalInicial += t.amount;
+                            if (t.status === 'paid') expRealInicial += t.amount;
+                        }
+                    }
+                });
+                
+                let accIncReal = incRealInicial;
+                let accIncTotal = incTotalInicial;
+                let accExpReal = expRealInicial;
+                let accExpTotal = expTotalInicial;
+                
+                for(let day = 1; day <= daysInMonth; day++) {
+                    labels.push(day);
+                    const dayTrans = monthTrans.filter(t => t.effectiveDate.getDate() === day);
+                    
+                    dayTrans.forEach(t => {
+                        if(t.type === 'income') {
+                            accIncTotal += t.amount;
+                            if(t.status === 'paid') accIncReal += t.amount;
+                        } else {
+                            accExpTotal += t.amount;
+                            if(t.status === 'paid') accExpReal += t.amount;
+                        }
+                    });
+                    
+                    incRealAcum.push(accIncReal);
+                    incTotalAcum.push(accIncTotal);
+                    expRealAcum.push(accExpReal);
+                    expTotalAcum.push(accExpTotal);
+                }
+                
                 window.myChart = new Chart(ctx.getContext('2d'), {
-                    type: 'bar',
+                    type: 'line',
                     data: {
-                        labels: ['Entradas', 'Saídas'],
+                        labels: labels,
                         datasets: [
-                            { label: 'Realizado', data: [incReal, expReal], backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 6, stack: 'Stack 0' },
-                            { label: 'Pendente', data: [incPend, expPend], backgroundColor: ['#a7f3d0', '#fecdd3'], borderRadius: 6, stack: 'Stack 0' }
+                            { label: 'Receita Realizada', data: incRealAcum, borderColor: '#059669', backgroundColor: 'rgba(5, 150, 105, 0.1)', borderWidth: 3, tension: 0.3, fill: false },
+                            { label: 'Receita Total (Real + Prevista)', data: incTotalAcum, borderColor: '#86efac', backgroundColor: 'rgba(134, 239, 172, 0.05)', borderWidth: 2, tension: 0.3, fill: false, borderDash: [5, 5] },
+                            { label: 'Despesa Realizada', data: expRealAcum, borderColor: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.1)', borderWidth: 3, tension: 0.3, fill: false },
+                            { label: 'Despesa Total (Real + Prevista)', data: expTotalAcum, borderColor: '#fca5a5', backgroundColor: 'rgba(252, 165, 165, 0.05)', borderWidth: 2, tension: 0.3, fill: false, borderDash: [5, 5] }
                         ]
                     },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' }, stacked: true }, x: { grid: { display: false }, stacked: true } } }
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + context.parsed.y.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                                    }
+                                }
+                            }
+                        }, 
+                        scales: { 
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#f1f5f9' },
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'R$ ' + value.toLocaleString('pt-BR');
+                                    }
+                                }
+                            }, 
+                            x: { 
+                                grid: { display: false },
+                                title: { display: true, text: 'Dia do Mês', font: { size: 11, weight: 'bold' } }
+                            } 
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
                 });
             },
 
