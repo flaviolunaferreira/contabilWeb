@@ -83,6 +83,13 @@ const Modal = {
         document.getElementById(`modal-${type}`).classList.remove('hidden');
         
         if(type === 'transaction') {
+            const descInput = document.getElementById('t-desc');
+            if (descInput) {
+                descInput.disabled = false;
+                descInput.readOnly = false;
+                descInput.removeAttribute('disabled');
+                descInput.removeAttribute('readonly');
+            }
             const sel = document.getElementById('t-card-id');
             sel.innerHTML = Store.cards.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
             
