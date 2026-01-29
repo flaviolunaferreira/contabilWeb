@@ -1,16 +1,16 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fluxo 360 Ultimate - Stable</title>
+    <title>BASA 360º Ultimate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
         
-        :root { --primary: #4f46e5; --bg-main: #f8fafc; }
+        :root { --primary: #006739; --bg-main: #f8fafc; }
 
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
@@ -29,7 +29,7 @@
         }
         
         .nav-item { transition: all 0.3s ease; cursor: pointer; }
-        .nav-item.active { background: #1e293b; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .nav-item.active { background: #006739; color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .nav-item:hover:not(.active) { background: #e2e8f0; }
 
         /* Cartão de Crédito Style */
@@ -56,12 +56,12 @@
         /* TABELA DE LANÇAMENTOS - VISIBILIDADE APRIMORADA */
         #transactions-table tr:nth-child(even) { background-color: #f8fafc; }
         #transactions-table tr:nth-child(odd) { background-color: #ffffff; }
-        #transactions-table tr:hover { background-color: #e0e7ff !important; transform: scale(1.005); box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15); }
+        #transactions-table tr:hover { background-color: #e0e7ff !important; transform: scale(1.005); box-shadow: 0 2px 8px rgba(0, 103, 57, 0.15); }
         #transactions-table tr { border-left: 4px solid transparent; transition: all 0.2s ease; }
-        #transactions-table tr:hover { border-left-color: #4f46e5; }
+        #transactions-table tr:hover { border-left-color: #006739; }
         #transactions-table td { border-bottom: 2px solid #e2e8f0; }
-        #transactions-table .group-header { background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important; color: white !important; }
-        #transactions-table .group-footer { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%) !important; border-top: 3px solid #6366f1 !important; border-bottom: 3px solid #6366f1 !important; }
+        #transactions-table .group-header { background: linear-gradient(135deg, #006739 0%, #004d2c 100%) !important; color: white !important; }
+        #transactions-table .group-footer { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%) !important; border-top: 3px solid #006739 !important; border-bottom: 3px solid #006739 !important; }
         
         /* TABELA DO DASHBOARD - RESUMO */
         #dashboard-summary-table tr:nth-child(even) { background-color: #f8fafc; }
@@ -108,12 +108,12 @@
 
     <aside class="w-64 bg-white border-r border-slate-200 flex flex-col p-6 hidden md:flex shrink-0 z-20">
         <div class="flex items-center gap-3 mb-10 px-2">
-            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                <i class="fas fa-cube text-xl"></i>
+            <div class="w-10 h-10 bg-[#006739] rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                <i class="fas fa-university text-xl"></i>
             </div>
             <div>
-                <h1 class="text-lg font-black tracking-tight leading-none">FLUXO 360</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ultimate</p>
+                <h1 class="text-lg font-black tracking-tight leading-none text-[#006739]">BASA</h1>
+                <p class="text-[10px] text-[#FDB913] font-bold uppercase tracking-widest">360º Ultimate</p>
             </div>
         </div>
 
@@ -140,32 +140,32 @@
 
     <main class="flex-1 flex flex-col overflow-hidden relative">
         
-        <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-10">
-            <div class="flex items-center gap-4">
-                <button onclick="App.changeDate(-1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-left text-slate-400"></i></button>
-                <h2 id="header-date" class="text-lg font-extrabold text-slate-800 min-w-[160px] text-center capitalize">--</h2>
-                <button onclick="App.changeDate(1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition"><i class="fas fa-chevron-right text-slate-400"></i></button>
-                <div class="ml-4 flex items-center gap-2">
+        <header class="min-h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex flex-wrap items-center justify-between px-4 md:px-8 py-2 gap-2 shrink-0 z-10">
+            <div class="flex items-center gap-2 md:gap-4 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
+                <button onclick="App.changeDate(-1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition shrink-0"><i class="fas fa-chevron-left text-slate-400"></i></button>
+                <h2 id="header-date" class="text-lg font-extrabold text-slate-800 min-w-[140px] md:min-w-[160px] text-center capitalize truncate">--</h2>
+                <button onclick="App.changeDate(1)" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center transition shrink-0"><i class="fas fa-chevron-right text-slate-400"></i></button>
+                <div class="ml-2 md:ml-4 flex items-center gap-2 shrink-0">
                     <i class="fas fa-filter text-slate-400 text-sm"></i>
-                    <select id="category-filter" onchange="App.render()" class="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 bg-white focus:outline-none focus:border-indigo-500 hover:bg-slate-50 transition">
+                    <select id="category-filter" onchange="App.render()" class="max-w-[120px] md:max-w-none px-2 md:px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 bg-white focus:outline-none focus:border-[#006739] hover:bg-slate-50 transition">
                         <option value="">Todas Categorias</option>
                     </select>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <button onclick="Modal.open('card')" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm transition">
-                    <i class="fas fa-credit-card mr-1"></i> Cartão
+            <div class="flex gap-2 w-full md:w-auto justify-end">
+                <button onclick="Modal.open('card')" class="flex-1 md:flex-none justify-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                    <i class="fas fa-credit-card"></i> <span class="hidden sm:inline">Cartão</span>
                 </button>
-                <button onclick="Modal.open('transaction')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 transition flex items-center gap-2">
+                <button onclick="Modal.open('transaction')" class="flex-1 md:flex-none justify-center bg-[#006739] hover:bg-[#004d2c] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 transition flex items-center gap-2">
                     <i class="fas fa-plus"></i> Novo
                 </button>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-8 custom-scroll relative">
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scroll relative">
             
             <div id="view-dashboard" class="space-y-8 animate-fade">
-                <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                     <div class="glass-card p-6 border-l-4 border-emerald-500">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Receitas (Mês)</p>
                         <h3 id="kpi-income" class="text-3xl font-black text-emerald-600 mt-2">R$ 0,00</h3>
@@ -182,10 +182,10 @@
                             <span>Pend: <b id="kpi-exp-pend" class="text-amber-500 text-sm">0</b></span>
                         </div>
                     </div>
-                    <div class="glass-card p-6 border-l-4 border-indigo-500 bg-gradient-to-br from-indigo-50 to-purple-50">
-                        <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Saldo Acumulado</p>
-                        <h3 id="kpi-projected" class="text-3xl font-black text-indigo-700 mt-2">R$ 0,00</h3>
-                        <p class="text-[10px] text-indigo-500 font-bold mt-2">Projeção até fim do mês</p>
+                    <div class="glass-card p-6 border-l-4 border-[#006739] bg-gradient-to-br from-emerald-50 to-yellow-50">
+                        <p class="text-[10px] font-bold text-[#006739] uppercase tracking-widest">Saldo Acumulado</p>
+                        <h3 id="kpi-projected" class="text-3xl font-black text-[#004d2c] mt-2">R$ 0,00</h3>
+                        <p class="text-[10px] text-[#006739] font-bold mt-2">Projeção até fim do mês</p>
                     </div>
                     <div class="glass-card p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white border-none relative overflow-hidden shadow-2xl">
                         <div class="relative z-10">
@@ -203,13 +203,13 @@
                     <div class="glass-card p-6 lg:col-span-2">
                         <div class="flex justify-between items-center mb-6">
                             <h3 class="font-black text-slate-900 text-lg">Fluxo Financeiro (Efetivo)</h3>
-                            <span class="text-xs font-bold text-indigo-600 uppercase tracking-wide bg-indigo-50 px-3 py-1.5 rounded-lg">Visão Gráfica</span>
+                            <span class="text-xs font-bold text-[#006739] uppercase tracking-wide bg-emerald-50 px-3 py-1.5 rounded-lg">Visão Gráfica</span>
                         </div>
                         <div class="h-64 relative w-full">
                             <canvas id="mainChart"></canvas>
                         </div>
                     </div>
-                    <div class="glass-card p-6 flex flex-col lg:row-span-2" style="height: 800px;">
+                    <div class="glass-card p-6 flex flex-col lg:row-span-2 h-[500px] lg:h-[800px]">
                         <h3 class="font-black text-slate-900 mb-4 shrink-0 text-lg">Próximos Vencimentos</h3>
                         <div id="dashboard-agenda" class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-3">
                         </div>
@@ -239,12 +239,12 @@
                     <div class="flex items-center gap-4">
                         <div class="flex flex-col">
                             <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Prever Saldo para o dia</label>
-                            <input type="date" id="preverSaldoData" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-indigo-500" onchange="App.render()">
+                            <input type="date" id="preverSaldoData" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-[#006739]" onchange="App.render()">
                         </div>
                         
                         <div class="flex flex-col">
                             <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Agrupar Demonstrativo Por</label>
-                            <select id="agrupamentoPeriodo" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-indigo-500" onchange="App.render()">
+                            <select id="agrupamentoPeriodo" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-[#006739]" onchange="App.render()">
                                 <option value="descricao">Por Descrição</option>
                                 <option value="dia">Por Dia</option>
                                 <option value="semana">Por Semana</option>
@@ -255,7 +255,7 @@
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full text-left text-sm min-w-[600px]">
                         <thead class="bg-gradient-to-r from-amber-600 to-orange-600 border-b-4 border-amber-500 text-white">
                             <tr>
                                 <th id="headerPeriodo" class="p-4 font-black rounded-tl-xl uppercase text-xs tracking-wider">Descrição</th>
@@ -284,32 +284,34 @@
             </div>
 
             <div id="view-lancamentos" class="hidden space-y-6">
-                <div class="flex justify-between items-end">
+                <div class="flex flex-col md:flex-row justify-between md:items-end gap-4">
                     <h2 class="text-2xl font-black text-slate-800">Extrato Detalhado</h2>
-                    <div class="flex gap-2">
-                         <select id="agrupamentoRelatorio" onchange="App.render()" class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                    <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                         <select id="agrupamentoRelatorio" onchange="App.render()" class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#006739]">
                             <option value="none">Sem Agrupamento</option>
                             <option value="dia">Por Dia</option>
                             <option value="semana">Por Semana</option>
                         </select>
-                        <input type="text" id="search-input" onkeyup="App.renderList()" placeholder="Buscar..." class="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-500">
+                        <input type="text" id="search-input" onkeyup="App.renderList()" placeholder="Buscar..." class="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-[#006739]">
                     </div>
                 </div>
                 <div class="glass-card overflow-hidden">
-                    <table class="w-full text-left text-sm">
-                        <thead class="bg-gradient-to-r from-slate-700 to-slate-800 border-b-4 border-indigo-500 text-white">
-                            <tr>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider">Data Efetiva</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider">Descrição</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider">Categoria</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider">Método</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider">Status</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider text-right">Valor</th>
-                                <th class="p-4 font-black uppercase text-xs tracking-wider text-center">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactions-table"></tbody>
-                    </table>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm min-w-[800px]">
+                            <thead class="bg-gradient-to-r from-slate-700 to-slate-800 border-b-4 border-[#006739] text-white">
+                                <tr>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider">Data Efetiva</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider">Descrição</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider">Categoria</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider">Método</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider">Status</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider text-right">Valor</th>
+                                    <th class="p-4 font-black uppercase text-xs tracking-wider text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-table"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
@@ -331,7 +333,7 @@
                     <div class="glass-card p-8 border-rose-100 bg-rose-50/30">
                         <h3 class="font-bold text-lg text-rose-700 mb-2">Reset</h3>
                         <button onclick="DataMgr.nuke()" class="w-full p-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">APAGAR TUDO</button>
-                        <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-bold">Gerar Dados Teste</button>
+                        <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-[#006739] hover:bg-[#006739] text-white rounded-xl font-bold">Gerar Dados Teste</button>
                     </div>
                 </div>
             </div>
@@ -351,7 +353,7 @@
                 <input id="t-desc" type="text" placeholder="Descrição" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
                 
                 <div class="relative">
-                    <input id="t-category" type="text" list="category-suggestions" placeholder="Digite a categoria (ex: Alimentação, Transporte...)" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600 focus:ring-2 focus:ring-indigo-300">
+                    <input id="t-category" type="text" list="category-suggestions" placeholder="Digite a categoria (ex: Alimentação, Transporte...)" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600 focus:ring-2 focus:ring-[#8DC63F]">
                     <datalist id="category-suggestions"></datalist>
                     <div class="absolute right-4 top-4 text-xs text-slate-400 pointer-events-none">
                         <i class="fas fa-tag"></i>
@@ -378,7 +380,7 @@
 
                 <div id="logic-dia-util" class="hidden p-3 bg-slate-50 rounded-xl flex items-center justify-between">
                     <span class="text-xs font-bold text-slate-600">Considerar 5º Dia Útil?</span>
-                    <input type="checkbox" id="t-dia-util" class="w-5 h-5 accent-indigo-600">
+                    <input type="checkbox" id="t-dia-util" class="w-5 h-5 accent-[#006739]">
                 </div>
 
                 <select id="t-method" onchange="Modal.toggleCardSelect()" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-600">
@@ -392,14 +394,14 @@
 
                 <div id="status-wrapper" class="flex gap-4 px-2">
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="t-status" value="paid" checked class="w-4 h-4 text-indigo-600"> <span class="text-sm font-bold text-slate-600">Pago</span>
+                        <input type="radio" name="t-status" value="paid" checked class="w-4 h-4 text-[#006739]"> <span class="text-sm font-bold text-slate-600">Pago</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="t-status" value="pending" class="w-4 h-4 text-indigo-600"> <span class="text-sm font-bold text-slate-600">Pendente</span>
+                        <input type="radio" name="t-status" value="pending" class="w-4 h-4 text-[#006739]"> <span class="text-sm font-bold text-slate-600">Pendente</span>
                     </label>
                 </div>
 
-                <button onclick="App.saveTransaction()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-indigo-200 mt-4 transition">Salvar</button>
+                <button onclick="App.saveTransaction()" class="w-full bg-[#006739] hover:bg-[#004d2c] text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-200 mt-4 transition">Salvar</button>
             </div>
         </div>
 
@@ -423,7 +425,7 @@
             <div class="mb-6">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-3">
-                        <i class="fas fa-credit-card text-2xl text-indigo-600"></i>
+                        <i class="fas fa-credit-card text-2xl text-[#006739]"></i>
                         <h3 id="card-details-title" class="text-2xl font-black text-slate-900">Cartão</h3>
                     </div>
                     
@@ -443,11 +445,11 @@
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total</p>
                     <h4 id="card-details-total" class="text-2xl font-black text-slate-900 mt-1">R$ 0,00</h4>
                 </div>
-                <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-xl border-2 border-indigo-200">
-                    <p class="text-[10px] font-bold text-indigo-700 uppercase tracking-widest flex items-center gap-1">
+                <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border-2 border-emerald-200">
+                    <p class="text-[10px] font-bold text-[#004d2c] uppercase tracking-widest flex items-center gap-1">
                         <i class="fas fa-check-square text-xs"></i> Conferido
                     </p>
-                    <h4 id="card-details-checked" class="text-2xl font-black text-indigo-700 mt-1">R$ 0,00</h4>
+                    <h4 id="card-details-checked" class="text-2xl font-black text-[#004d2c] mt-1">R$ 0,00</h4>
                 </div>
                 <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 rounded-xl border-2 border-emerald-200">
                     <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Pago</p>
@@ -460,7 +462,7 @@
             </div>
             
             <div class="flex gap-3 mb-4">
-                <button onclick="App.checkAllInvoice(true)" class="flex-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2">
+                <button onclick="App.checkAllInvoice(true)" class="flex-1 bg-emerald-100 hover:bg-emerald-200 text-[#004d2c] px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2">
                     <i class="fas fa-check-double"></i> Marcar Todos
                 </button>
                 <button onclick="App.checkAllInvoice(false)" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center justify-center gap-2">
@@ -659,11 +661,11 @@
                         const isChecked = t.checked ? 'checked' : '';
                         return `<tr>
                             <td class="p-3 text-center">
-                                <input type="checkbox" ${isChecked} onchange="App.toggleChecked(${t.id})" class="w-5 h-5 accent-indigo-600 cursor-pointer" title="Marcar como conferido">
+                                <input type="checkbox" ${isChecked} onchange="App.toggleChecked(${t.id})" class="w-5 h-5 accent-[#006739] cursor-pointer" title="Marcar como conferido">
                             </td>
                             <td class="p-3 text-slate-700 font-medium text-sm">${t.effectiveDate.toLocaleDateString('pt-BR')}</td>
                             <td class="p-3 font-bold text-slate-900">${t.desc}${t.displayNote?`<div class="text-[9px] italic text-slate-500 mt-0.5">${t.displayNote}</div>`:''}</td>
-                            <td class="p-3">${t.category ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">-</span>'}</td>
+                            <td class="p-3">${t.category ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-100 text-[#004d2c] text-[10px] font-bold uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">-</span>'}</td>
                             <td class="p-3"><span class="status-pill ${stClass} text-[9px] py-1 px-2">${t.status==='paid'?'Pago':'Pendente'}</span></td>
                             <td class="p-3 text-right font-black text-slate-900 text-base">${App.fmt(t.amount)}</td>
                             <td class="p-3 text-center">
@@ -1010,7 +1012,7 @@
                                 </div>
                                 <div class="relative z-10">
                                     <div class="flex justify-between text-[10px] font-bold mb-1 uppercase text-slate-400"><span>Limite Usado (Total)</span><span>${Math.round(pct)}%</span></div>
-                                    <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-indigo-400 transition-all duration-500" style="width: ${pct}%"></div></div>
+                                    <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden"><div class="h-full bg-emerald-400 transition-all duration-500" style="width: ${pct}%"></div></div>
                                     <div class="flex justify-between mt-1 text-[10px] text-slate-400"><span>${this.fmt(totalDebt)} total</span><span>${this.fmt(c.limit)} limite</span></div>
                                 </div>
                                 <div class="relative z-10 flex justify-between items-end border-t border-white/10 pt-3">
@@ -1084,7 +1086,7 @@
                         <td class="p-4 text-center font-black text-slate-600 text-base">${g.count}</td>
                         <td class="p-4 text-right font-black text-emerald-600 text-base">${this.fmt(g.income)}</td>
                         <td class="p-4 text-right font-black text-rose-600 text-base">${this.fmt(g.expense)}</td>
-                        <td class="p-4 text-right font-black text-lg ${g.balance >= 0 ? 'text-indigo-600' : 'text-rose-600'}">${this.fmt(g.balance)}</td>
+                        <td class="p-4 text-right font-black text-lg ${g.balance >= 0 ? 'text-[#006739]' : 'text-rose-600'}">${this.fmt(g.balance)}</td>
                          <td class="p-4 text-right text-xs font-bold">
                              <div class="flex flex-col text-[11px] gap-1">
                                  <div class="flex justify-between w-full gap-2 items-center"><span class="text-slate-600">Pg:</span> <span class="text-emerald-600 font-black text-sm">${this.fmt(g.paid)}</span></div>
@@ -1113,12 +1115,12 @@
                     return `<tr>
                         <td class="p-4 text-slate-700 font-bold">${t.effectiveDate.toLocaleDateString('pt-BR')}${t.displayNote?`<div class="text-[10px] italic text-slate-500">${t.displayNote}</div>`:''}</td>
                         <td class="p-4 font-extrabold text-slate-900">${t.desc}</td>
-                        <td class="p-4">${t.category ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-100 text-indigo-700 text-xs font-black uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">Sem categoria</span>'}</td>
+                        <td class="p-4">${t.category ? `<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 text-[#004d2c] text-xs font-black uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">Sem categoria</span>'}</td>
                         <td class="p-4 text-xs font-bold uppercase text-slate-600">${t.method==='credit'?`<i class="fas fa-credit-card text-amber-500"></i> ${t.originLabel}`:'<i class="fas fa-wallet text-emerald-500"></i> Conta'}</td>
                         <td class="p-4"><span class="status-pill ${stClass}">${t.status==='paid'?'Pago':'Pendente'}</span></td>
                         <td class="p-4 text-right font-black text-lg ${isInc?'text-emerald-600':'text-rose-600'}">${isInc?'+':'-'} ${this.fmt(t.amount)}</td>
                         <td class="p-4 text-center flex justify-center gap-2">
-                            <button onclick="App.toggleStatus(${t.id})" class="text-indigo-500 hover:text-indigo-700 mx-1"><i class="fas fa-check-circle"></i></button>
+                            <button onclick="App.toggleStatus(${t.id})" class="text-[#006739] hover:text-[#004d2c] mx-1"><i class="fas fa-check-circle"></i></button>
                             <button onclick="Modal.open('transaction', ${t.id})" class="text-amber-500 hover:text-amber-700 mx-1"><i class="fas fa-edit"></i></button>
                             <button onclick="App.deleteTransaction(${t.id})" class="text-rose-400 hover:text-rose-600 mx-1"><i class="fas fa-trash"></i></button>
                         </td></tr>`;
@@ -1178,7 +1180,7 @@
                 const el = document.getElementById('dashboard-agenda');
                 if(!el) return;
                 const upcoming = data.filter(t => t.status === 'pending').sort((a,b) => a.effectiveDate - b.effectiveDate);
-                el.innerHTML = upcoming.length ? upcoming.map(t => `<div class="flex justify-between items-center border-b-2 border-slate-100 pb-3"><div class="flex items-center gap-3"><div class="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-black flex-col leading-none shadow-lg"><span class="text-lg">${t.effectiveDate.getDate()}</span><span class="text-[9px] opacity-80 mt-0.5">${t.effectiveDate.toLocaleString('pt-BR', {month: 'short'}).toUpperCase()}</span></div><div><p class="text-sm font-black text-slate-900">${t.desc}</p><p class="text-[10px] text-slate-500 uppercase font-bold mt-0.5"><i class="fas fa-credit-card mr-1"></i>${t.originLabel}</p></div></div><span class="font-black text-base ${t.type==='income'?'text-emerald-600':'text-rose-600'}">${this.fmt(t.amount)}</span></div>`).join('') : '<p class="text-sm text-slate-400 italic">Nada pendente.</p>';
+                el.innerHTML = upcoming.length ? upcoming.map(t => `<div class="flex justify-between items-center border-b-2 border-slate-100 pb-3"><div class="flex items-center gap-3"><div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-purple-600 flex items-center justify-center text-white text-xs font-black flex-col leading-none shadow-lg"><span class="text-lg">${t.effectiveDate.getDate()}</span><span class="text-[9px] opacity-80 mt-0.5">${t.effectiveDate.toLocaleString('pt-BR', {month: 'short'}).toUpperCase()}</span></div><div><p class="text-sm font-black text-slate-900">${t.desc}</p><p class="text-[10px] text-slate-500 uppercase font-bold mt-0.5"><i class="fas fa-credit-card mr-1"></i>${t.originLabel}</p></div></div><span class="font-black text-base ${t.type==='income'?'text-emerald-600':'text-rose-600'}">${this.fmt(t.amount)}</span></div>`).join('') : '<p class="text-sm text-slate-400 italic">Nada pendente.</p>';
             },
 
             renderChart(monthTrans) {
@@ -1449,3 +1451,4 @@
     </script>
 </body>
 </html>
+
