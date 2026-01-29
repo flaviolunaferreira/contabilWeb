@@ -1,0 +1,11 @@
+node_modules
+dist
+dist_electron
+.idea
+.vscode
+*.log
+*.db
+*.sqlite
+Thumbs.db
+.DS_Store
+

@@ -1,8 +1,11 @@
 {
   "name": "contabilweb",
   "version": "1.0.0",
-  "main": "script.js",
+  "description": "",
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -12,15 +15,27 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/flaviolunaferreira/contabilWeb/issues"
   },
   "homepage": "https://github.com/flaviolunaferreira/contabilWeb#readme",
-  "description": "",
+  "build": {
+    "appId": "com.contabilweb.app",
+    "productName": "ContabilWeb",
+    "files": [
+      "**/*",
+      "!dist"
+    ],
+    "win": {
+      "target": "dir"
+    }
+  },
+  "devDependencies": {
+    "electron": "^40.1.0",
+    "electron-builder": "^26.4.0"
+  },
   "dependencies": {
-    "@capacitor-community/sqlite": "^7.0.1",
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "sqlite3": "^5.1.7"
   }
 }
