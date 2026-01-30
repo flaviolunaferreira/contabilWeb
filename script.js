@@ -83,13 +83,23 @@ const Modal = {
         document.getElementById(`modal-${type}`).classList.remove('hidden');
         
         if(type === 'transaction') {
-            const descInput = document.getElementById('t-desc');
-            if (descInput) {
-                descInput.disabled = false;
-                descInput.readOnly = false;
-                descInput.removeAttribute('disabled');
-                descInput.removeAttribute('readonly');
+            // Garantir que todos os campos estejam habilitados (Reseta estados travados anteriores)
+            const modal = document.getElementById('modal-transaction');
+            const inputs = modal.querySelectorAll('input, select, textarea');
+            inputs.forEach(el => {
+                el.disabled = false;
+                el.readOnly = false;
+                el.removeAttribute('disabled');
+                el.removeAttribute('readonly');
+            });
+            
+            // Garantir botão salvar
+            const btnSave = document.getElementById('btn-save-transaction');
+            if(btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerText = 'Salvar';
             }
+
             const sel = document.getElementById('t-card-id');
             sel.innerHTML = Store.cards.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
             
@@ -191,12 +201,13 @@ const Modal = {
         
         const tbody = document.getElementById('card-details-table');
         if (transactions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400 italic">Nenhuma despesa encontrada para os filtros selecionados</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-slate-400 italic">Nenhuma despesa encontrada para os filtros selecionados</td></tr>';
         } else {
             tbody.innerHTML = transactions.map(t => {
                 const stClass = t.status === 'paid' ? 'status-paid' : 'status-pending';
                 const isChecked = t.checked ? 'checked' : '';
                 return `<tr>
+                    <td class="p-3 font-mono text-[10px] text-slate-400 text-center">#${t.id}</td>
                     <td class="p-3 text-center">
                         <input type="checkbox" ${isChecked} onchange="App.toggleChecked(${t.id})" class="w-5 h-5 accent-[#006739] cursor-pointer" title="Marcar como conferido">
                     </td>
@@ -248,51 +259,98 @@ const App = {
         this.currentView = view;
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`nav-${view}`).classList.add('active');
-        ['dashboard', 'lancamentos', 'cartoes', 'config'].forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
-        document.getElementById(`view-${view}`).classList.remove('hidden');
+        
+        // Hide all views
+        ['dashboard', 'lancamentos', 'cartoes', 'analise', 'conselheiro', 'config'].forEach(v => {
+            const el = document.getElementById(`view-${v}`);
+            if(el) el.classList.add('hidden');
+        });
+
+        const target = document.getElementById(`view-${view}`);
+        if(target) target.classList.remove('hidden');
+        
         this.render();
     },
     changeDate(months) { this.currentDate.setMonth(this.currentDate.getMonth() + months); this.render(); },
     
     async saveTransaction() {
-        const id = document.getElementById('t-id').value;
-        const desc = document.getElementById('t-desc').value;
-        const amount = parseFloat(document.getElementById('t-amount').value);
-        const dateVal = document.getElementById('t-date').value;
-        const method = document.getElementById('t-method').value;
-        const cardId = document.getElementById('t-card-id').value;
-        const status = document.querySelector('input[name="t-status"]:checked').value;
-        const use5thDay = document.getElementById('t-dia-util').checked;
-        const repeatCount = parseInt(document.getElementById('t-repeat').value) || 1;
-        const category = document.getElementById('t-category').value.trim();
-
-        if (!desc || isNaN(amount) || !dateVal || !Modal.selectedType) return alert("Preencha todos os campos!");
-
-        // Adicionar categoria automaticamente se for nova
-        if (category && !Store.categories.includes(category)) {
-            await Store.addCategory(category);
-            this.populateCategoryFilter();
+        // Bloquear botão imediato
+        const btnSave = document.getElementById('btn-save-transaction');
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
         }
 
-        const baseT = { amount, method, status, type: Modal.selectedType, cardId: method === 'credit' ? cardId : null, use5thDay: Modal.selectedType === 'income' ? use5thDay : false, category: category || null };
+        try {
+            const id = document.getElementById('t-id').value;
+            const desc = document.getElementById('t-desc').value;
+            const amount = parseFloat(document.getElementById('t-amount').value);
+            const dateVal = document.getElementById('t-date').value;
+            const method = document.getElementById('t-method').value;
+            const cardId = document.getElementById('t-card-id').value;
+            const status = document.querySelector('input[name="t-status"]:checked').value;
+            const use5thDay = document.getElementById('t-dia-util').checked;
+            const repeatCount = parseInt(document.getElementById('t-repeat').value) || 1;
+            const category = document.getElementById('t-category').value.trim();
+            
+            // Juros
+            const isFinancing = document.getElementById('t-is-financing')?.checked;
+            let interestRate = isFinancing ? parseFloat(document.getElementById('t-interest').value) : null;
+            if (interestRate && isNaN(interestRate)) interestRate = null;
 
-        if(id) {
-            // Edição
-            await Store.saveTransaction({ id: parseInt(id), ...baseT, desc: desc, date: dateVal, checked: false });
-        } else {
-            // Nova(s)
-            let startDate = new Date(dateVal + 'T00:00:00');
-            for (let i = 0; i < repeatCount; i++) {
-                let nextDate = addMonthsPreservingDay(startDate, i);
-                const isoDate = nextDate.toISOString().split('T')[0];
-                let finalDesc = desc;
-                if (repeatCount > 1) finalDesc = `${desc} (${i + 1}/${repeatCount})`;
-                // id será gerado pelo BD se for null/undefined, mas o código antigo usava timestamp.
-                // o SQL usa AUTOINCREMENT se id for null.
-                await Store.saveTransaction({ id: null, ...baseT, desc: finalDesc, date: isoDate, checked: false });
+            if (!desc || isNaN(amount) || !dateVal || !Modal.selectedType) {
+                if (btnSave) {
+                    btnSave.disabled = false;
+                    btnSave.innerText = 'Salvar';
+                }
+                return alert("Preencha todos os campos!");
             }
+
+            // Adicionar categoria automaticamente se for nova
+            if (category && !Store.categories.includes(category)) {
+                await Store.addCategory(category);
+                this.populateCategoryFilter();
+            }
+
+            const baseT = { 
+                amount, method, status, type: Modal.selectedType, 
+                cardId: method === 'credit' ? cardId : null, 
+                use5thDay: Modal.selectedType === 'income' ? use5thDay : false, 
+                category: category || null,
+                interest_rate: interestRate
+            };
+
+            if(id) {
+                // Edição
+                await Store.saveTransaction({ id: parseInt(id), ...baseT, desc: desc, date: dateVal, checked: false });
+                alert("Transação atualizada com sucesso!");
+            } else {
+                // Nova(s)
+                let startDate = new Date(dateVal + 'T00:00:00');
+                const updates = [];
+                for (let i = 0; i < repeatCount; i++) {
+                    let nextDate = addMonthsPreservingDay(startDate, i);
+                    const isoDate = nextDate.toISOString().split('T')[0];
+                    let finalDesc = desc;
+                    if (repeatCount > 1) finalDesc = `${desc} (${i + 1}/${repeatCount})`;
+                    
+                    updates.push(Store.saveTransaction({ ...baseT, desc: finalDesc, date: isoDate, checked: false }));
+                }
+                await Promise.all(updates);
+                alert(`${repeatCount} transação(ões) salva(s) com sucesso!`);
+            }
+            
+            Modal.close();
+        } catch (error) {
+            console.error(error);
+            alert("Erro ao salvar: " + error.message);
+        } finally {
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerText = 'Salvar';
+            }
+            this.render();
         }
-        Modal.close(); this.render();
     },
     async addCard() {
         const name = document.getElementById('c-name').value;
@@ -546,6 +604,9 @@ const App = {
         }
         if(this.currentView === 'lancamentos') this.renderList(monthTrans);
         
+        if(this.currentView === 'analise') this.renderAnalise(monthTrans);
+        if(this.currentView === 'conselheiro') this.renderConselheiro();
+
         // LÓGICA DE CARTÕES
         if(this.currentView === 'cartoes') {
             const grid = document.getElementById('cards-grid');
@@ -990,6 +1051,422 @@ const App = {
         });
     },
 
+    renderAnalise(monthTrans) {
+        const container = document.getElementById('analise-container');
+        if (!container) return;
+
+        // --- 1. DADOS BASE ---
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+
+        // Lógica de Investimento vs Despesa
+        const investKeywords = ['investimento', 'patrimônio', 'patrimonio', 'aplicação', 'poupança', 'aporte', 'imóvel', 'casa', 'apartamento', 'veículo', 'carro', 'moto'];
+        const isInvestment = (t) => {
+           if(!t.category) return false;
+           const cat = t.category.toLowerCase();
+           return investKeywords.some(k => cat.includes(k));
+        };
+
+        // Renda e Despesa do Mês (para base de cálculo)
+        const incomes = monthTrans.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0);
+        
+        // Separa Despesas de Investimentos/Patrimônio
+        const operationalExpenses = monthTrans.filter(t => t.type === 'expense' && !isInvestment(t)).reduce((a, b) => a + b.amount, 0);
+        const investments = monthTrans.filter(t => t.type === 'expense' && isInvestment(t)).reduce((a, b) => a + b.amount, 0);
+
+        // Agora a margem livre ignora aportes em patrimônio, pois são "troca de caixa por ativo"
+        const margemLivre = incomes - operationalExpenses;
+
+        // Identificar dívidas parceladas FUTURAS para antecipação
+        // Procura padrões como "Nome (1/12)" nas pendentes GERAIS do banco de dados, não só do mês
+        const futureInstallments = {};
+        this.processedTransactions.forEach(t => {
+            if (t.type === 'expense' && t.status === 'pending' && t.effectiveDate > hoje) {
+                const match = t.desc.match(/(.*)\s\((\d+)\/(\d+)\)/);
+                if (match) {
+                    const name = match[1].trim();
+                    // const currentParcel = parseInt(match[2]);
+                    // const totalParcel = parseInt(match[3]);
+                    
+                    if (!futureInstallments[name]) {
+                        futureInstallments[name] = { 
+                            totalAmount: 0, 
+                            count: 0, 
+                            sampleAmount: t.amount, 
+                            name: name,
+                            rate: t.interest_rate // Pega a taxa salva (se houver)
+                        };
+                    }
+                    futureInstallments[name].totalAmount += t.amount;
+                    futureInstallments[name].count++;
+                    // Se algum item do grupo tem taxa, assume pro grupo
+                    if (t.interest_rate && !futureInstallments[name].rate) futureInstallments[name].rate = t.interest_rate;
+                }
+            }
+        });
+
+        // --- 2. HTML STRUCTURE ---
+        let html = `
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 text-left animate-fade-in-up">
+                
+                <!-- COLUNA 1: GESTÃO & ANTECIPAÇÃO -->
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-rocket text-indigo-600"></i> Acelerador de Riqueza
+                    </h3>
+
+                    <!-- SIMULADOR DE ANTECIPAÇÃO -->
+                    <div class="glass-card p-6 relative overflow-visible group">
+                        <div class="absolute -top-4 -right-4 bg-indigo-100 p-2 rounded-full opacity-50">
+                            <i class="fas fa-chart-line text-4xl text-indigo-300"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 mb-2">Otimização de Dívidas</h4>
+                        <p class="text-xs text-slate-500 mb-4">Descubra se vale a pena antecipar. Cadastre a taxa real para precisão máxima.</p>
+                        
+                        ${Object.keys(futureInstallments).length === 0 
+                            ? `<p class="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-lg">Você não possui parcelamentos futuros detectados para antecipar.</p>` 
+                            : `<div class="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                                ${Object.keys(futureInstallments).map(key => {
+                                    const item = futureInstallments[key];
+                                    
+                                    // Taxa de Comparação
+                                    let discountRate = 0.008; 
+                                    let isCalibrated = false;
+
+                                    if(item.rate) {
+                                        discountRate = item.rate / 100;
+                                        isCalibrated = true;
+                                    }
+
+                                    const avgMonths = item.count / 2; 
+                                    const presentValue = item.totalAmount / Math.pow(1 + discountRate, avgMonths);
+                                    let discount = item.totalAmount - presentValue;
+
+                                    // PROTEÇÃO: Escapar aspas simples no nome para não quebrar o onclick
+                                    const safeName = item.name.replace(/'/g, "\\'");
+                                    
+                                    return `
+                                    <div class="p-4 bg-white border ${isCalibrated ? 'border-indigo-200' : 'border-slate-100'} rounded-xl hover:shadow-md transition relative">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                                    ${item.name}
+                                                    ${isCalibrated ? '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">CALIBRADO</span>' : ''}
+                                                </p>
+                                                <p class="text-[10px] text-slate-500 font-bold uppercase">${item.count} parcelas • Total ${this.fmt(item.totalAmount)}</p>
+                                            </div>
+                                            <div class="text-right">
+                                                ${isCalibrated 
+                                                    ? `<p class="text-[10px] text-slate-400">Juros de <b class="text-rose-500">${item.rate}% a.m.</b></p>`
+                                                    : `<button onclick="App.calibrateInterest('${safeName}', ${item.totalAmount}, ${item.count})" class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200 transition">
+                                                         <i class="fas fa-calculator"></i> Calcular Juros
+                                                       </button>`
+                                                }
+                                            </div>
+                                        </div>
+
+                                        
+                                        ${isCalibrated ? `
+                                            <div class="mt-2 pt-2 border-t border-indigo-50 flex justify-between items-center bg-indigo-50/30 p-2 rounded-lg">
+                                                <span class="text-xs text-indigo-800 font-bold">Economia se quitar hoje:</span>
+                                                <span class="text-base font-black text-emerald-600">+ ${this.fmt(discount)}</span>
+                                            </div>
+                                            <p class="text-[9px] text-slate-400 mt-1 text-center">
+                                                ${item.rate > 0.9 
+                                                  ? `<i class="fas fa-check-circle text-emerald-500"></i> Antecipar vale a pena! (Juros ${item.rate}% > CDI 0.9%)` 
+                                                  : `<i class="fas fa-times-circle text-amber-500"></i> Não antecipe. Invista o dinheiro (CDI 0.9% > Juros ${item.rate}%)`}
+                                            </p>
+                                        ` : `
+                                            <p class="text-[10px] text-slate-400 mt-2 italic border-t border-slate-50 pt-2 text-center">
+                                                Para saber se vale a pena antecipar, clique em "Calcular Juros" acima.
+                                            </p>
+                                        `}
+                                    </div>`;
+                                }).join('')}
+                               </div>`
+                        }
+                    </div>
+
+                    <!-- PROJEÇÃO DE FLUXO LIVRE -->
+                    <div class="glass-card p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="font-bold text-lg">Potencial de Investimento</h4>
+                            <div class="bg-white/10 px-3 py-1 rounded-full text-xs font-bold">Mensal</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="text-slate-400 text-xs uppercase font-bold">Fluxo Operacional</p>
+                                <p class="text-xl font-bold ${margemLivre > 0 ? 'text-emerald-400' : 'text-rose-400'}">
+                                    ${this.fmt(margemLivre)}
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-slate-400 text-xs uppercase font-bold">Patrimônio (+)</p>
+                                <p class="text-xl font-bold text-amber-300">
+                                    ${this.fmt(investments)}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right mb-4">
+                            <p class="text-slate-400 text-xs uppercase font-bold">Projeção de Fluxo Anual</p>
+                            <p class="text-xl font-bold text-indigo-300">
+                                ${this.fmt(margemLivre * 12)}
+                            </p>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed border-t border-white/10 pt-3">
+                            <i class="fas fa-info-circle mr-1"></i> "Fluxo Operacional" é o dinheiro que sobra após pagar custos de vida (sem contar investimentos/casa/carro). <br/>
+                            <i class="fas fa-chart-pie mr-1"></i> Se mantiver esse padrão, em 5 anos você terá gerado <b class="text-white">${this.fmt((margemLivre * 12 * 5) * 1.3)}</b> de caixa livre (além dos ativos já comprados).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- COLUNA 2: SIMULADORES E METAS -->
+                <div class="space-y-6">
+                    <h3 class="text-2xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-university text-emerald-600"></i> Construção de Patrimônio
+                    </h3>
+
+                    <!-- SIMULADOR DA CAIXINHA -->
+                    <div class="glass-card p-6" id="sim-box-card">
+                        <h4 class="font-bold text-slate-800 mb-2 flex justify-between">
+                            <span>Simulador de "Caixinha"</span>
+                            <i class="fas fa-sliders-h text-slate-400"></i>
+                        </h4>
+                        <p class="text-xs text-slate-500 mb-6">Quanto da sua renda você aceita separar todo mês para dias difíceis?</p>
+
+                        <div class="mb-6">
+                            <div class="flex justify-between text-xs font-bold text-slate-600 mb-2">
+                                <span>Contribuir: <span id="sim-input-val" class="text-emerald-600 text-base">10%</span> da Renda</span>
+                                <span>Renda Info: ${this.fmt(incomes)}</span>
+                            </div>
+                            <input type="range" min="1" max="50" value="10" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer" 
+                                oninput="App.updateCaixinhaSim(${incomes}, this.value)">
+                        </div>
+
+                        <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-bold text-emerald-800 uppercase">Aporte Mensal</span>
+                                <span class="font-black text-emerald-700 text-lg" id="sim-aporte-val">${this.fmt(incomes * 0.1)}</span>
+                            </div>
+                             <div class="space-y-2">
+                                <div class="flex justify-between text-sm text-slate-600">
+                                    <span>Em 6 meses:</span>
+                                    <span class="font-bold text-slate-800" id="sim-result-6m">${this.fmt(incomes * 0.1 * 6)}</span>
+                                </div>
+                                <div class="flex justify-between text-sm text-slate-600">
+                                    <span>Em 1 ano:</span>
+                                    <span class="font-bold text-slate-800" id="sim-result-12m">${this.fmt(incomes * 0.1 * 12)}</span>
+                                </div>
+                                <div class="flex justify-between text-sm text-slate-600 pt-2 border-t border-emerald-200/50">
+                                    <span>Meta (reserva de 3 meses):</span>
+                                    <span class="font-bold text-emerald-700">${this.fmt(expenses * 3)}</span>
+                                </div>
+                                <p class="text-[10px] text-right text-slate-400 mt-1" id="sim-meta-text">
+                                    Você atingiria sua segurança em <b>${Math.ceil((expenses * 3) / (incomes * 0.1))} meses</b>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ADVICE CARD -->
+                    <div class="p-6 rounded-2xl bg-amber-50 border border-amber-100">
+                        <div class="flex gap-4">
+                            <div class="text-amber-500 text-2xl mt-1"><i class="fas fa-lightbulb"></i></div>
+                            <div>
+                                <h4 class="font-bold text-amber-800 mb-1">Estratégia do Economista</h4>
+                                <p class="text-sm text-amber-900/80 text-justify leading-relaxed">
+                                    ${Object.keys(futureInstallments).length > 0 && margemLivre > 0
+                                        ? "Sua prioridade: <b>Calibre os juros</b> dos seus financiamentos na lista ao lado. Se a taxa de juros for maior que o rendimento do CDB (aprox 0.9% am), use sua sobra de caixa para quitar dívidas. Se for menor, invista!"
+                                        : "O melhor investimento inicial é a sua paz. Comece sua 'caixinha' hoje, mesmo que seja com 1% da renda. O hábito é mais importante que o valor."}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        container.classList.remove('text-center');
+        container.innerHTML = html;
+        container.parentElement.classList.remove('hidden'); // view-analise
+    },
+
+    calibrateInterest(name, totalFuture, count) {
+        // Abre o modal personalizado em vez de prompt
+        Modal.close(); // Fecha outros se tiver
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        document.querySelectorAll('.modal-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById('modal-calibrate').classList.remove('hidden');
+
+        // Preenche dados
+        document.getElementById('calib-name').value = name;
+        document.getElementById('calib-total').value = totalFuture;
+        document.getElementById('calib-count').value = count;
+        
+        document.getElementById('calib-display-total').innerText = this.fmt(totalFuture);
+        document.getElementById('calib-display-count').innerText = `${count}x`;
+        document.getElementById('calib-value').value = '';
+        document.getElementById('calib-value').focus();
+    },
+
+    async runCalibration() {
+        const name = document.getElementById('calib-name').value;
+        const totalFuture = parseFloat(document.getElementById('calib-total').value);
+        const count = parseInt(document.getElementById('calib-count').value);
+        const pvStr = document.getElementById('calib-value').value;
+
+        if (!pvStr || pvStr <= 0) return alert("Por favor, informe um valor válido para quitação.");
+        
+        const pv = parseFloat(pvStr);
+        if (pv >= totalFuture) return alert("O valor de quitação antecipada deve ser menor que o total futuro.");
+
+        // Calcular Taxa Implícita (Simplificada)
+        // FV = PV * (1 + i)^n => i = (FV/PV)^(1/n) - 1
+        const avgN = count / 2; // Tempo médio
+        const monthlyRate = (Math.pow(totalFuture / pv, 1/avgN) - 1) * 100;
+        
+        // Salva direto, sem confirm window (UI já é explícita)
+        const updates = [];
+        let countUpdated = 0;
+        this.processedTransactions.forEach(t => {
+            if (t.status === 'pending' && t.type === 'expense' && t.desc.match(/(.*)\s\((\d+)\/(\d+)\)/)) {
+                const matchName = t.desc.match(/(.*)\s\((\d+)\/(\d+)\)/)[1].trim();
+                if(matchName === name) {
+                    t.interest_rate = parseFloat(monthlyRate.toFixed(2));
+                    updates.push(Store.saveTransaction({
+                        id: t.id,
+                        desc: t.desc,
+                        amount: t.amount,
+                        date: t.date, // string YYYY-MM-DD original
+                        method: t.method,
+                        status: t.status,
+                        type: t.type,
+                        cardId: t.cardId,
+                        use5thDay: t.use5thDay,
+                        category: t.category,
+                        checked: t.checked,
+                        interest_rate: t.interest_rate
+                    }));
+                    countUpdated++;
+                }
+            }
+        });
+        
+        await Promise.all(updates);
+        alert(`Sucesso! Taxa calculada de ${monthlyRate.toFixed(2)}% a.m. aplicada a ${countUpdated} parcelas.`);
+        Modal.close();
+        this.render();
+    },
+
+    updateCaixinhaSim(income, percent) {
+        const val = (income * (percent / 100));
+        document.getElementById('sim-input-val').innerText = percent + '%';
+        document.getElementById('sim-aporte-val').innerText = this.fmt(val);
+        document.getElementById('sim-result-6m').innerText = this.fmt(val * 6);
+        document.getElementById('sim-result-12m').innerText = this.fmt(val * 12);
+    },
+
+    renderConselheiro() {
+        const container = document.getElementById('conselheiro-container');
+        if(!container) return;
+
+        // Gerar conselhos baseados em heurísticas
+        const tips = [];
+        const hoje = new Date();
+        const m = hoje.getMonth(), y = hoje.getFullYear();
+        
+        // Dados globais
+        let totalIncome = 0;
+        let totalExpense = 0;
+        
+        this.processedTransactions.forEach(t => {
+            if(t.type === 'income') totalIncome += t.amount;
+            else totalExpense += t.amount;
+        });
+
+        // Heurística 1: Reserva
+        const balance = totalIncome - totalExpense;
+        if(balance < 1000) {
+            tips.push({
+                icon: 'fa-umbrella',
+                color: 'amber',
+                title: 'Construa sua Reserva',
+                text: 'Seu saldo acumulado histórico parece baixo. Antes de investir ou gastar com lazer, tente juntar pelo menos 3 meses de custo de vida. Isso evita que você caia no Cheque Especial em imprevistos.'
+            });
+        } else {
+             tips.push({
+                icon: 'fa-trophy',
+                color: 'emerald',
+                title: 'Saldo Positivo',
+                text: 'Você tem um histórico positivo. Considere colocar esse excedente em um investimento de liquidez diária (CDB 100% CDI) para render juros a seu favor.'
+            });
+        }
+
+        // Heurística 2: Categorias de "Lazer" ou alto custo
+        const catTotals = {};
+        this.processedTransactions.filter(t => t.type === 'expense').forEach(t => {
+            const cat = t.category || 'Outros';
+            if(!catTotals[cat]) catTotals[cat] = 0;
+            catTotals[cat] += t.amount;
+        });
+        
+        const sortedCats = Object.entries(catTotals).sort((a,b) => b[1] - a[1]);
+        if(sortedCats.length > 0) {
+            const topCat = sortedCats[0];
+            tips.push({
+                icon: 'fa-search-dollar',
+                color: 'blue',
+                title: `Atenção com ${topCat[0]}`,
+                text: `Sua maior despesa histórica é com <b>${topCat[0]}</b> (${this.fmt(topCat[1])}). Tente reduzir 10% deste valor no próximo mês para ver o impacto no seu saldo livre.`
+            });
+        }
+
+        // Heurística 3: Cartão de Crédito
+        const creditExpenses = this.processedTransactions.filter(t => t.method === 'credit' && t.type === 'expense').reduce((a,b)=>a+b.amount,0);
+        const totalExpenses = this.processedTransactions.filter(t => t.type === 'expense').reduce((a,b)=>a+b.amount,0);
+        
+        if (totalExpenses > 0) {
+            const creditRatio = (creditExpenses / totalExpenses);
+            if(creditRatio > 0.6) {
+                tips.push({
+                    icon: 'fa-credit-card',
+                    color: 'purple',
+                    title: 'Dependência do Cartão',
+                    text: 'Mais de 60% dos seus gastos são no crédito. Cuidado com o efeito "Bola de Neve". Tente pagar pequenas despesas do dia a dia no débito para sentir a saída do dinheiro real.'
+                });
+            }
+        }
+
+        const html = tips.map(tip => `
+            <div class="glass-card p-6 flex items-start gap-4 border-l-4 border-${tip.color}-500 hover:bg-${tip.color}-50 transition duration-300">
+                <div class="w-12 h-12 shrink-0 rounded-full bg-${tip.color}-100 text-${tip.color}-600 flex items-center justify-center text-xl shadow-sm">
+                    <i class="fas ${tip.icon}"></i>
+                </div>
+                <div>
+                    <h4 class="text-lg font-black text-slate-800 mb-2">${tip.title}</h4>
+                    <p class="text-sm text-slate-600 leading-relaxed text-justify">${tip.text}</p>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="glass-card p-8 mb-6 bg-gradient-to-r from-slate-800 to-slate-900 text-white">
+                <div class="flex items-center gap-4">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Economist&backgroundColor=c0aede" class="w-16 h-16 rounded-full border-2 border-white/50">
+                    <div>
+                        <h3 class="text-2xl font-black">Conselheiro Virtual</h3>
+                        <p class="text-sm text-slate-300">Analisando seus padrões de consumo...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                ${html}
+            </div>
+        `;
+    },
+
     fmt(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 };
 
@@ -1039,6 +1516,53 @@ const DataMgr = {
         await window.DB.saveTransaction({id:2,desc:"Mercado",amount:450,date:`${y}-${m}-15`,method:"credit",status:"pending",type:"expense",cardId:1,use5thDay:false});
         await Store.init();
         location.reload();
+    },
+
+    // --- NOVAS FUNÇÕES DE LIMPEZA ---
+    async deleteById() {
+        const idStr = document.getElementById('config-del-id').value;
+        if(!idStr) return alert("Digite um ID válido.");
+        
+        const id = parseInt(idStr);
+        const t = Store.transactions.find(x => x.id === id);
+        
+        if(!t) return alert("Transação não encontrada com este ID.");
+        
+        if(confirm(`Tem certeza que deseja apagar:\nID: ${t.id}\nDesc: ${t.desc}\nValor: ${App.fmt(t.amount)}\nData: ${t.date}`)) {
+            try {
+                await window.DB.deleteTransaction(id);
+                await Store.init();
+                alert("Transação removida com sucesso!");
+                App.render();
+            } catch(e) {
+                alert("Erro ao remover: " + e);
+            }
+        }
+    },
+
+    async deleteByDesc() {
+        const desc = document.getElementById('config-del-desc').value.trim();
+        if(!desc) return alert("Digite um texto para buscar na descrição.");
+        
+        // CORREÇÃO: Usa 'startsWith' para pegar "Nome (1/X)", "Nome (2/X)" e converte para minúsculas
+        const targets = Store.transactions.filter(t => t.desc.toLowerCase().startsWith(desc.toLowerCase()));
+        
+        if(targets.length === 0) return alert("Nenhuma transação encontrada começando com esse texto.");
+        
+        if(confirm(`ATENÇÃO: Isso apagará ${targets.length} transações!\n\nCritério: Começa com "${desc}"\nValor total somado: ${App.fmt(targets.reduce((a,b)=>a+b.amount,0))}\n\nExemplo encontrado: ${targets[0].desc}\n\nConfirma a exclusão em massa?`)) {
+            let count = 0;
+            try {
+                for(const t of targets) {
+                    await window.DB.deleteTransaction(t.id);
+                    count++;
+                }
+                await Store.init();
+                alert(`${count} transações removidas com sucesso!`);
+                App.render();
+            } catch(e) {
+                alert(`Erro após remover ${count} itens: ` + e);
+            }
+        }
     }
 };
 

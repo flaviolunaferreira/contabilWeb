@@ -10,6 +10,7 @@ const db = new sqlite3.Database(dbPath)
 // Inicializa Tabelas
 function initDB() {
   db.serialize(() => {
+    // Tabela Transactions
     db.run(`CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY,
       desc TEXT,
@@ -21,8 +22,12 @@ function initDB() {
       cardId INTEGER,
       use5thDay INTEGER,
       category TEXT,
-      checked INTEGER
+      checked INTEGER,
+      interest_rate REAL
     )`)
+    
+    // Migration simples: tentar adicionar a coluna caso não exista (ignora erro se já existir)
+    db.run("ALTER TABLE transactions ADD COLUMN interest_rate REAL", (err) => { /* ignora erroColumn already exists */ })
 
     db.run(`CREATE TABLE IF NOT EXISTS cards (
       id INTEGER PRIMARY KEY,
@@ -56,16 +61,16 @@ ipcMain.handle('db-get-all-transactions', async () => {
 
 ipcMain.handle('db-save-transaction', async (event, t) => {
   return new Promise((resolve, reject) => {
-    const query = `INSERT INTO transactions (id, desc, amount, date, method, status, type, cardId, use5thDay, category, checked) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const query = `INSERT INTO transactions (id, desc, amount, date, method, status, type, cardId, use5thDay, category, checked, interest_rate) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                    desc=excluded.desc, amount=excluded.amount, date=excluded.date, method=excluded.method, 
                    status=excluded.status, type=excluded.type, cardId=excluded.cardId, 
-                   use5thDay=excluded.use5thDay, category=excluded.category, checked=excluded.checked`
+                   use5thDay=excluded.use5thDay, category=excluded.category, checked=excluded.checked, interest_rate=excluded.interest_rate`
     
     db.run(query, [
       t.id, t.desc, t.amount, t.date, t.method, t.status, t.type, t.cardId, 
-      t.use5thDay ? 1 : 0, t.category, t.checked ? 1 : 0
+      t.use5thDay ? 1 : 0, t.category, t.checked ? 1 : 0, t.interest_rate || null
     ], function(err) {
       if(err) reject(err)
       else resolve(this.lastID || t.id)
@@ -161,6 +166,9 @@ function createWindow () {
 
   win.loadFile('index.html')
   
+  // Abre o Inspecionar Elemento (DevTools)
+  win.webContents.openDevTools()
+
   // Remove o menu padrão (Arquivo, Editar, etc) para parecer mais nativo
   win.setMenuBarVisibility(false)
 }

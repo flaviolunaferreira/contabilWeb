@@ -32,6 +32,12 @@
             <div onclick="App.navigate('cartoes')" id="nav-cartoes" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
                 <i class="fas fa-credit-card w-5"></i> Meus Cartões
             </div>
+            <div onclick="App.navigate('analise')" id="nav-analise" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-chart-line w-5"></i> Análise 360º
+            </div>
+            <div onclick="App.navigate('conselheiro')" id="nav-conselheiro" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-brain w-5"></i> Conselheiro
+            </div>
             <div onclick="App.navigate('config')" id="nav-config" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
                 <i class="fas fa-cog w-5"></i> Ajustes & Backup
             </div>
@@ -151,7 +157,7 @@
                             <label class="text-[10px] font-bold text-slate-400 uppercase mb-1">Agrupar Demonstrativo Por</label>
                             <select id="agrupamentoPeriodo" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 focus:outline-none focus:border-[#006739]" onchange="App.render()">
                                 <option value="descricao">Por Descrição</option>
-                                <option value="dia">Por Dia</option>
+                                <option value="dia" selected>Por Dia</option>
                                 <option value="semana">Por Semana</option>
                                 <option value="mes">Por Mês</option>
                             </select>
@@ -186,6 +192,18 @@
                     <h3 id="cards-total-month" class="text-4xl font-black text-slate-900">R$ 0,00</h3>
                 </div>
                 <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <div id="view-analise" class="hidden space-y-6">
+                <!-- Conteúdo Análise será injetado pelo JS -->
+                <div class="glass-card p-8 text-center" id="analise-container">
+                    <i class="fas fa-spinner fa-spin text-3xl text-emerald-600"></i>
+                </div>
+            </div>
+
+            <div id="view-conselheiro" class="hidden space-y-6">
+                <!-- Conteúdo Conselheiro será injetado pelo JS -->
+                 <div id="conselheiro-container" class="grid grid-cols-1 gap-6"></div>
             </div>
 
             <div id="view-lancamentos" class="hidden space-y-6">
@@ -241,6 +259,34 @@
                         <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-[#006739] hover:bg-[#006739] text-white rounded-xl font-bold">Gerar Dados Teste</button>
                     </div>
                 </div>
+
+                <!-- Nova Seção de Reparo -->
+                <div class="glass-card p-8 border-orange-100 bg-orange-50/30">
+                    <h3 class="font-bold text-lg text-orange-700 mb-4">Reparo e Limpeza</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Delete by ID -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar ID único</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="config-del-id" placeholder="ID numérico..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
+                                <button onclick="DataMgr.deleteById()" class="px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-200 transition-all hover:scale-105 active:scale-95" title="Apagar item específico">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Delete by Desc (Batch) -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar por Descrição (Lote)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="config-del-desc" placeholder="Descrição exata..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
+                                <button onclick="DataMgr.deleteByDesc()" class="px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95" title="Apagar TODOS com esta descrição">
+                                    <i class="fas fa-biohazard mr-2"></i> Limpar
+                                </button>
+                            </div>
+                            <p class="text-xs text-orange-600 mt-2 font-semibold"><i class="fas fa-exclamation-triangle"></i> Atenção: Remove TODOS os registros com este nome exato.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -266,8 +312,22 @@
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
-                    <input id="t-amount" type="number" step="0.01" placeholder="R$ 0,00" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
+                    <input id="t-amount" type="number" step="0.01" placeholder="Valor (R$)" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium">
                     <input id="t-date" type="date" class="w-full p-4 bg-slate-50 border-none rounded-xl font-medium text-slate-500">
+                </div>
+
+                <!-- Campo de Juros Opcional -->
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div class="flex justify-between items-center mb-2">
+                         <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" id="t-is-financing" class="w-4 h-4 accent-indigo-600 rounded mr-2" onchange="document.getElementById('interest-input-container').classList.toggle('hidden', !this.checked)">
+                            <span class="text-xs font-bold text-slate-500">Tem juros embutidos?</span>
+                         </label>
+                    </div>
+                    <div id="interest-input-container" class="hidden animate-fade-in-down">
+                        <input id="t-interest" type="number" step="0.01" placeholder="Taxa de Juros Mensal (ex: 1.5)" class="w-full p-3 bg-white border border-indigo-100 rounded-lg font-bold text-indigo-600 placeholder-slate-300 focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[10px] text-slate-400 mt-1 ml-1">Informe a taxa % mensal para que o conselheiro calcule vantagens de antecipação.</p>
+                    </div>
                 </div>
 
                 <div id="recurrence-wrapper" class="p-3 bg-slate-50 rounded-xl border border-slate-100">
@@ -306,7 +366,7 @@
                     </label>
                 </div>
 
-                <button onclick="App.saveTransaction()" class="w-full bg-[#006739] hover:bg-[#004d2c] text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-200 mt-4 transition">Salvar</button>
+                <button id="btn-save-transaction" onclick="App.saveTransaction()" class="w-full bg-[#006739] hover:bg-[#004d2c] text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-emerald-200 mt-4 transition">Salvar</button>
             </div>
         </div>
 
@@ -379,7 +439,8 @@
                 <table class="w-full text-left text-sm">
                     <thead class="bg-gradient-to-r from-slate-700 to-slate-800 text-white sticky top-0 z-10">
                         <tr>
-                            <th class="p-3 font-black uppercase text-[10px] tracking-wider text-center">Conferido</th>
+                            <th class="p-3 font-black uppercase text-[10px] tracking-wider text-center">ID</th>
+                            <th class="p-3 font-black uppercase text-[10px] tracking-wider text-center">OK?</th>
                             <th class="p-3 font-black uppercase text-[10px] tracking-wider">Data Venc.</th>
                             <th class="p-3 font-black uppercase text-[10px] tracking-wider">Descrição</th>
                             <th class="p-3 font-black uppercase text-[10px] tracking-wider">Categoria</th>
@@ -390,6 +451,39 @@
                     </thead>
                     <tbody id="card-details-table"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <div id="modal-calibrate" class="modal-content hidden bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative animate-fade-in-up">
+            <button onclick="Modal.close()" class="absolute top-6 right-6 w-10 h-10 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-600 transition flex items-center justify-center" title="Fechar">
+                <i class="fas fa-times-circle text-xl"></i>
+            </button>
+            <h3 class="text-xl font-black mb-2 text-slate-800 text-indigo-700 flex items-center gap-2">
+                <i class="fas fa-calculator"></i> Calibrar Juros
+            </h3>
+            <p class="text-sm text-slate-500 mb-6 leading-relaxed">Se você abrisse o app do banco hoje e antecipasse todas as parcelas restantes desta compra, qual seria o valor total cobrado?</p>
+            
+            <div class="space-y-4">
+                <input type="hidden" id="calib-name">
+                <input type="hidden" id="calib-total">
+                <input type="hidden" id="calib-count">
+                
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-indigo-400 uppercase">Dívida Total Futura</span>
+                        <span class="text-xs font-bold text-indigo-400 uppercase bg-white px-2 py-1 rounded-lg shadow-sm" id="calib-display-count">0x</span>
+                    </div>
+                    <p id="calib-display-total" class="text-2xl font-black text-indigo-900 mt-1">R$ 0,00</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Valor para Quitação Hoje</label>
+                    <input id="calib-value" type="number" step="0.01" placeholder="Ex: 1540.50" class="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-xl font-bold text-lg text-slate-800 transition outline-none">
+                </div>
+                
+                <button onclick="App.runCalibration()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-xl font-bold transition shadow-lg shadow-indigo-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Calcular & Salvar Taxa
+                </button>
             </div>
         </div>
     </div>
