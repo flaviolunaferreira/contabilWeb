@@ -689,10 +689,10 @@ const App = {
             this.updateSafe('kpi-projected', this.fmt(balProj));
             
             // CARD INTELIGENTE DE SALDO LIVRE
-            let freeBalance = balReal - reserveAmount;
+            let freeBalance = balReal - expPend;
             this.updateSafe('kpi-free-balance', this.fmt(freeBalance));
             this.updateSafe('kpi-current-cash', this.fmt(balReal));
-            this.updateSafe('kpi-reserve', `- ${this.fmt(reserveAmount)}`);
+            this.updateSafe('kpi-reserve', `- ${this.fmt(expPend)}`);
             this.updateSafe('sidebar-balance', this.fmt(freeBalance));
 
             this.renderChart(monthTrans);
