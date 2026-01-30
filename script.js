@@ -25,8 +25,17 @@ function calculate5thBusinessDay(year, month) {
 const Store = {
     transactions: [],
     cards: [],
+    // Lista base de objetos. Se DB vazio, salva estes.
     categories: [
-        'Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Moradia', 'Vestuário', 'Outros'
+        {name: 'Alimentação', type: 'fixed', color: '#f59e0b', icon: 'fa-utensils'},
+        {name: 'Moradia', type: 'fixed', color: '#3b82f6', icon: 'fa-home'},
+        {name: 'Transporte', type: 'variable', color: '#6366f1', icon: 'fa-car'},
+        {name: 'Saúde', type: 'fixed', color: '#ef4444', icon: 'fa-heartbeat'},
+        {name: 'Educação', type: 'fixed', color: '#8b5cf6', icon: 'fa-graduation-cap'},
+        {name: 'Lazer', type: 'variable', color: '#ec4899', icon: 'fa-cocktail'},
+        {name: 'Vestuário', type: 'variable', color: '#14b8a6', icon: 'fa-tshirt'},
+        {name: 'Investimentos', type: 'investment', color: '#10b981', icon: 'fa-chart-line'},
+        {name: 'Outros', type: 'variable', color: '#64748b', icon: 'fa-box'}
     ],
     async init() {
         try {
@@ -36,16 +45,20 @@ const Store = {
             
             const dbCats = await window.DB.getAllCategories() || [];
             if (dbCats && dbCats.length > 0) {
+                // Mapeia do DB
                 this.categories = dbCats;
             } else {
                 // Se DB vazio, salva as padrão
                 for(const c of this.categories) await window.DB.addCategory(c);
             }
-            this.categories.sort();
+            this.categories.sort((a,b) => a.name.localeCompare(b.name));
         } catch(e) {
             console.error("Erro ao carregar DB", e);
             alert("Erro ao carregar banco de dados!");
         }
+    },
+    getCategory(name) {
+        return this.categories.find(c => c.name === name) || {name: name, type: 'variable', color: '#94a3b8', icon: 'fa-tag'};
     },
     async saveTransaction(t) {
         await window.DB.saveTransaction(t);
@@ -63,14 +76,24 @@ const Store = {
         await window.DB.deleteCard(id);
         await this.init();
     },
-    async addCategory(name) {
-        const trimmed = name.trim();
-        if (trimmed && !this.categories.includes(trimmed)) {
-            await window.DB.addCategory(trimmed);
+    async addCategory(catObj) {
+        // catObj: {name, type, color, icon} ou string (compatibilidade)
+        if(typeof catObj === 'string') {
+            catObj = { name: catObj.trim(), type: 'variable', color: '#64748b', icon: 'fa-tag' };
+        }
+        
+        if (catObj.name && !this.categories.some(c => c.name === catObj.name)) {
+            await window.DB.addCategory(catObj);
             await this.init();
             return true;
         }
         return false;
+    },
+    async deleteCategory(name) {
+        if(confirm(`Tem certeza que deseja remover a categoria "${name}"? Os lançamentos ficarão sem metadados.`)) {
+            await window.DB.deleteCategory(name);
+            await this.init();
+        }
     }
 };
 
@@ -113,7 +136,10 @@ const Modal = {
                 document.getElementById('t-amount').value = t.amount;
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-method').value = t.method;
+                
                 if(t.cardId) document.getElementById('t-card-id').value = t.cardId;
+                
+                // Categoria agora é string, mas verificamos se existe no Store
                 if(t.category) document.getElementById('t-category').value = t.category;
                 
                 const radios = document.getElementsByName('t-status');
@@ -132,6 +158,12 @@ const Modal = {
                 document.getElementById('t-repeat').value = "1";
                 document.getElementById('t-dia-util').checked = false;
                 document.getElementById('t-category').value = "";
+                
+                // Reset Completo de Estado
+                document.getElementById('t-method').value = "money";
+                document.querySelector('input[name="t-status"][value="paid"]').checked = true;
+                this.toggleCardSelect(); // Garante resets visuais (like pointer-events)
+                
                 this.setType('expense');
                 document.getElementById('recurrence-wrapper').classList.remove('hidden');
             }
@@ -169,7 +201,7 @@ const Modal = {
     populateCategorySuggestions() {
         const datalist = document.getElementById('category-suggestions');
         if (datalist) {
-            datalist.innerHTML = Store.categories.map(cat => `<option value="${cat}">`).join('');
+            datalist.innerHTML = Store.categories.map(cat => `<option value="${cat.name}">`).join('');
         }
     },
     openCardDetails(cardName, transactions, total, paid, pending, categoryFilter) {
@@ -206,6 +238,7 @@ const Modal = {
             tbody.innerHTML = transactions.map(t => {
                 const stClass = t.status === 'paid' ? 'status-paid' : 'status-pending';
                 const isChecked = t.checked ? 'checked' : '';
+                const catObj = Store.getCategory(t.category);
                 return `<tr>
                     <td class="p-3 font-mono text-[10px] text-slate-400 text-center">#${t.id}</td>
                     <td class="p-3 text-center">
@@ -213,7 +246,13 @@ const Modal = {
                     </td>
                     <td class="p-3 text-slate-700 font-medium text-sm">${t.effectiveDate.toLocaleDateString('pt-BR')}</td>
                     <td class="p-3 font-bold text-slate-900">${t.desc}${t.displayNote?`<div class="text-[9px] italic text-slate-500 mt-0.5">${t.displayNote}</div>`:''}</td>
-                    <td class="p-3">${t.category ? `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-100 text-[#004d2c] text-[10px] font-bold uppercase"><i class="fas fa-tag"></i> ${t.category}</span>` : '<span class="text-slate-400 text-xs">-</span>'}</td>
+                    <td class="p-3">
+                        ${(() => {
+                            if(!t.category) return '<span class="text-slate-400 text-xs">-</span>';
+                            const c = Store.getCategory(t.category);
+                            return `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase" style="background-color: ${c.color}20; color: ${c.color}"><i class="fas ${c.icon||'fa-tag'}"></i> ${t.category}</span>`;
+                        })()}
+                    </td>
                     <td class="p-3"><span class="status-pill ${stClass} text-[9px] py-1 px-2">${t.status==='paid'?'Pago':'Pendente'}</span></td>
                     <td class="p-3 text-right font-black text-slate-900 text-base">${App.fmt(t.amount)}</td>
                     <td class="p-3 text-center">
@@ -251,7 +290,7 @@ const App = {
         if (filter) {
             const currentValue = filter.value;
             filter.innerHTML = '<option value="">Todas Categorias</option>' + 
-                Store.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+                Store.categories.map(cat => `<option value="${cat.name}">${cat.name}</option>`).join('');
             if (currentValue) filter.value = currentValue;
         }
     },
@@ -269,9 +308,57 @@ const App = {
         const target = document.getElementById(`view-${view}`);
         if(target) target.classList.remove('hidden');
         
+        if(view === 'conselheiro') this.renderConselheiro();
+        if(view === 'config') this.renderCategoryConfigList();
+        
         this.render();
     },
     changeDate(months) { this.currentDate.setMonth(this.currentDate.getMonth() + months); this.render(); },
+    
+    async addCategoryFromConfig() {
+        const name = document.getElementById('cat-manage-name').value;
+        const type = document.getElementById('cat-manage-type').value;
+        const color = document.getElementById('cat-manage-color').value;
+        
+        if(!name) return alert("Digite o nome da categoria!");
+        
+        const success = await Store.addCategory({ name, type, color });
+        if(success) {
+            document.getElementById('cat-manage-name').value = '';
+            this.renderCategoryConfigList();
+        } else {
+            alert("Categoria já existe!");
+        }
+    },
+    
+    renderCategoryConfigList() {
+        const list = document.getElementById('config-cat-list');
+        if(!list) return;
+        
+        const translateType = {
+            'fixed': 'Despesa Fixa',
+            'variable': 'Despesa Variável',
+            'investment': 'Investimento',
+            'asset': 'Bens/Patrimônio'
+        };
+        
+        list.innerHTML = Store.categories.map(c => `
+            <div class="flex items-center justify-between p-3 border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg shadow-sm flex items-center justify-center text-white" style="background-color: ${c.color}">
+                        <i class="fas ${c.icon || 'fa-tag'}"></i>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${c.name}</p>
+                        <p class="text-[10px] text-slate-500 uppercase font-bold">${translateType[c.type] || c.type}</p>
+                    </div>
+                </div>
+                <button onclick="Store.deleteCategory('${c.name}').then(() => App.renderCategoryConfigList())" class="text-rose-400 hover:text-rose-600 transition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    },
     
     async saveTransaction() {
         // Bloquear botão imediato
@@ -307,7 +394,7 @@ const App = {
             }
 
             // Adicionar categoria automaticamente se for nova
-            if (category && !Store.categories.includes(category)) {
+            if (category && !Store.categories.some(c => c.name === category)) {
                 await Store.addCategory(category);
                 this.populateCategoryFilter();
             }
@@ -349,6 +436,17 @@ const App = {
                 btnSave.disabled = false;
                 btnSave.innerText = 'Salvar';
             }
+            
+            // Destrava final de segurança
+            const modal = document.getElementById('modal-transaction');
+            if(modal) {
+                 const inputs = modal.querySelectorAll('input, select, textarea');
+                 inputs.forEach(el => {
+                     el.disabled = false;
+                     el.readOnly = false;
+                 });
+            }
+
             this.render();
         }
     },
@@ -927,18 +1025,15 @@ const App = {
         });
         const categories = Array.from(categoriesSet).sort();
         
-        // Cores para as categorias
-        const colors = [
-            '#059669', '#dc2626', '#2563eb', '#7c3aed', '#ea580c', 
-            '#0891b2', '#be123c', '#65a30d', '#c026d3', '#0d9488'
-        ];
-        
         const datasets = [];
         
-        // Criar datasets para cada categoria
-        categories.forEach((cat, idx) => {
-            const color = colors[idx % colors.length];
-            const colorLight = color + '80'; // versão clara
+        // Criar datasets para cada categoria encontrada
+        categories.forEach((cat) => {
+            const catObj = Store.getCategory(cat);
+            const color = catObj.color || '#94a3b8';
+            const colorLight = color + '40'; 
+
+            // Só processa se tiver transação (já garantido pelo set, mas verificamos filtro mês/saldo)
             
             // Calcular saldo inicial (tudo antes do mês atual desta categoria)
             let initialReal = 0;
@@ -971,28 +1066,31 @@ const App = {
                 acumTotal.push(accTotal);
             }
             
-            // Linha sólida para valores realizados
-            datasets.push({
-                label: cat + ' (Realizado)',
-                data: acumReal,
-                borderColor: color,
-                backgroundColor: 'rgba(0,0,0,0)',
-                borderWidth: 3,
-                tension: 0.3,
-                fill: false
-            });
-            
-            // Linha tracejada para valores totais
-            datasets.push({
-                label: cat + ' (Total)',
-                data: acumTotal,
-                borderColor: colorLight,
-                backgroundColor: 'rgba(0,0,0,0)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: false,
-                borderDash: [5, 5]
-            });
+            // Só visualiza se tiver movimento ou saldo
+            // Se o saldo total final (accTotal) for zero E não tiver movimento no mês...
+            if(accTotal !== 0 || accReal !== 0 || monthTrans.some(t => (t.category || 'Sem Categoria') === cat)) {
+                
+                datasets.push({
+                    label: cat + ' (Realizado)',
+                    data: acumReal,
+                    borderColor: color,
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    borderWidth: 3,
+                    tension: 0.3,
+                    fill: false
+                });
+                
+                datasets.push({
+                    label: cat + ' (Total)',
+                    data: acumTotal,
+                    borderColor: colorLight,
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false,
+                    borderDash: [5, 5]
+                });
+            }
         });
         
         for(let day = 1; day <= daysInMonth; day++) {
@@ -1059,12 +1157,15 @@ const App = {
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
 
-        // Lógica de Investimento vs Despesa
-        const investKeywords = ['investimento', 'patrimônio', 'patrimonio', 'aplicação', 'poupança', 'aporte', 'imóvel', 'casa', 'apartamento', 'veículo', 'carro', 'moto'];
+        // Lógica de Investimento baseada no TIPO da Categoria
         const isInvestment = (t) => {
            if(!t.category) return false;
-           const cat = t.category.toLowerCase();
-           return investKeywords.some(k => cat.includes(k));
+           // Busca o objeto categoria completo
+           const catObj = Store.getCategory(t.category);
+           if (!catObj) return false;
+           
+           // Se for do tipo investimento ou patrimonio/asset, retorna true
+           return catObj.type === 'investment' || catObj.type === 'asset';
         };
 
         // Renda e Despesa do Mês (para base de cálculo)
@@ -1074,7 +1175,7 @@ const App = {
         const operationalExpenses = monthTrans.filter(t => t.type === 'expense' && !isInvestment(t)).reduce((a, b) => a + b.amount, 0);
         const investments = monthTrans.filter(t => t.type === 'expense' && isInvestment(t)).reduce((a, b) => a + b.amount, 0);
 
-        // Agora a margem livre ignora aportes em patrimônio, pois são "troca de caixa por ativo"
+        // Agora a margem livre ignora aportes em patrimônio
         const margemLivre = incomes - operationalExpenses;
 
         // Identificar dívidas parceladas FUTURAS para antecipação
@@ -1260,10 +1361,10 @@ const App = {
                                 </div>
                                 <div class="flex justify-between text-sm text-slate-600 pt-2 border-t border-emerald-200/50">
                                     <span>Meta (reserva de 3 meses):</span>
-                                    <span class="font-bold text-emerald-700">${this.fmt(expenses * 3)}</span>
+                                    <span class="font-bold text-emerald-700">${this.fmt(operationalExpenses * 3)}</span>
                                 </div>
                                 <p class="text-[10px] text-right text-slate-400 mt-1" id="sim-meta-text">
-                                    Você atingiria sua segurança em <b>${Math.ceil((expenses * 3) / (incomes * 0.1))} meses</b>.
+                                    Você atingiria sua segurança em <b>${Math.ceil((operationalExpenses * 3) / (incomes * 0.1))} meses</b>.
                                 </p>
                             </div>
                         </div>

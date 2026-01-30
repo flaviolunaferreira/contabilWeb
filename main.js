@@ -37,9 +37,33 @@ function initDB() {
       due INTEGER
     )`)
 
-    db.run(`CREATE TABLE IF NOT EXISTS categories (
-      name TEXT PRIMARY KEY
+    // NOVA ESTRUTURA DE CATEGORIAS
+    db.run(`CREATE TABLE IF NOT EXISTS category_meta (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE,
+      type TEXT,
+      color TEXT,
+      icon TEXT
     )`)
+
+    // Migrar categorias antigas (tabela 'categories' com apenas 'name') para 'category_meta'
+    // Primeiro verifica se a tabela antiga existe
+    db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'", (err, row) => {
+        if (!row) {
+             // Se não existe 'categories', talvez já esteja tudo limpo ou só usando 'category_meta'
+        } else {
+            // Se existe, migrar dados
+            db.all("SELECT name FROM categories", (err, rows) => {
+                if (rows && rows.length > 0) {
+                    const stmt = db.prepare("INSERT OR IGNORE INTO category_meta (name, type, color, icon) VALUES (?, ?, ?, ?)");
+                    rows.forEach(r => {
+                        stmt.run(r.name, 'variable', '#94a3b8', 'fa-tag');
+                    });
+                    stmt.finalize();
+                }
+            });
+        }
+    });
   })
 }
 
@@ -57,6 +81,54 @@ ipcMain.handle('db-get-all-transactions', async () => {
       })))
     })
   })
+})
+
+ipcMain.handle('db-get-all-categories', async () => {
+    return new Promise((resolve, reject) => {
+        // Tenta buscar da nova tabela primeiro
+        db.all("SELECT * FROM category_meta ORDER BY name", (err, rows) => {
+            if (err) reject(err)
+            else resolve(rows)
+        })
+    })
+})
+
+ipcMain.handle('db-add-category', async (event, catObj) => {
+    // catObj pode ser string (legado) ou objeto {name, type, color, icon}
+    // Normalizar para objeto
+    const name = typeof catObj === 'string' ? catObj : catObj.name;
+    const type = catObj.type || 'variable';
+    const color = catObj.color || '#94a3b8';
+    const icon = catObj.icon || 'fa-tag';
+
+    return new Promise((resolve, reject) => {
+        db.run("INSERT OR IGNORE INTO category_meta (name, type, color, icon) VALUES (?, ?, ?, ?)", 
+            [name, type, color, icon], 
+            (err) => {
+                if(err) reject(err)
+                else resolve(true)
+            }
+        )
+    })
+})
+
+ipcMain.handle('db-update-category', async (event, cat) => {
+    return new Promise((resolve, reject) => {
+        const query = `UPDATE category_meta SET type=?, color=?, icon=? WHERE name=?`;
+        db.run(query, [cat.type, cat.color, cat.icon, cat.name], (err) => {
+            if(err) reject(err)
+            else resolve(true)
+        })
+    })
+})
+
+ipcMain.handle('db-delete-category', async (event, name) => {
+    return new Promise((resolve, reject) => {
+        db.run("DELETE FROM category_meta WHERE name = ?", [name], (err) => {
+            if(err) reject(err)
+            else resolve(true)
+        })
+    })
 })
 
 ipcMain.handle('db-save-transaction', async (event, t) => {
@@ -117,30 +189,15 @@ ipcMain.handle('db-delete-card', async (event, id) => {
   })
 })
 
-ipcMain.handle('db-get-all-categories', async () => {
-  return new Promise((resolve, reject) => {
-    db.all("SELECT name FROM categories", (err, rows) => {
-      if(err) reject(err)
-      else resolve(rows.map(r => r.name))
-    })
-  })
-})
+// Handlers legados removidos para evitar conflito
 
-ipcMain.handle('db-add-category', async (event, cat) => {
-  return new Promise((resolve, reject) => {
-    db.run("INSERT OR IGNORE INTO categories (name) VALUES (?)", [cat], (err) => {
-      if(err) reject(err)
-      else resolve(true)
-    })
-  })
-})
 
 ipcMain.handle('db-nuke', async () => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run("DELETE FROM transactions")
       db.run("DELETE FROM cards")
-      db.run("DELETE FROM categories") // Opcional, talvez queira manter
+      db.run("DELETE FROM category_meta") 
       resolve(true)
     })
   })

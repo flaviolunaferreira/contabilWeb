@@ -283,7 +283,36 @@
                                     <i class="fas fa-biohazard mr-2"></i> Limpar
                                 </button>
                             </div>
-                            <p class="text-xs text-orange-600 mt-2 font-semibold"><i class="fas fa-exclamation-triangle"></i> Atenção: Remove TODOS os registros com este nome exato.</p>
+                            <p class="text-xs text-orange-600 mt-2 font-semibold"><i class="fas fa-exclamation-triangle"></i> Atenção: Remove TODOS os registros começando com este texto.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nova Seção: Gestão de Categorias -->
+                <div class="glass-card p-8 border-indigo-100 bg-indigo-50/30">
+                    <h3 class="font-bold text-lg text-indigo-700 mb-4">Gestão de Categorias</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Formulário -->
+                        <div class="md:col-span-1 space-y-3">
+                            <input type="text" id="cat-manage-name" placeholder="Nome da Categoria" class="w-full p-3 bg-white border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:outline-none">
+                            <select id="cat-manage-type" class="w-full p-3 bg-white border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:outline-none text-slate-600">
+                                <option value="fixed">Despesa Fixa</option>
+                                <option value="variable">Despesa Variável</option>
+                                <option value="investment">Investimento / Patrimônio</option>
+                                <option value="asset">Aquisição de Bens</option>
+                            </select>
+                            <div class="flex gap-2">
+                                <input type="color" id="cat-manage-color" value="#6366f1" class="h-12 w-12 rounded-xl border-none cursor-pointer">
+                                <button onclick="App.addCategoryFromConfig()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition">
+                                    <i class="fas fa-plus mr-2"></i> Adicionar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lista -->
+                        <div class="md:col-span-2 bg-white rounded-xl p-4 shadow-sm max-h-60 overflow-y-auto custom-scroll" id="config-cat-list">
+                            <!-- Injetado via JS -->
                         </div>
                     </div>
                 </div>
