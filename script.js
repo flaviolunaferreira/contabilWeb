@@ -25,23 +25,25 @@ function calculate5thBusinessDay(year, month) {
 const Store = {
     transactions: [],
     cards: [],
+    recurrences: [],
     // Lista base de objetos. Se DB vazio, salva estes.
     categories: [
-        {name: 'Alimentação', type: 'fixed', color: '#f59e0b', icon: 'fa-utensils'},
-        {name: 'Moradia', type: 'fixed', color: '#3b82f6', icon: 'fa-home'},
-        {name: 'Transporte', type: 'variable', color: '#6366f1', icon: 'fa-car'},
-        {name: 'Saúde', type: 'fixed', color: '#ef4444', icon: 'fa-heartbeat'},
-        {name: 'Educação', type: 'fixed', color: '#8b5cf6', icon: 'fa-graduation-cap'},
-        {name: 'Lazer', type: 'variable', color: '#ec4899', icon: 'fa-cocktail'},
-        {name: 'Vestuário', type: 'variable', color: '#14b8a6', icon: 'fa-tshirt'},
-        {name: 'Investimentos', type: 'investment', color: '#10b981', icon: 'fa-chart-line'},
-        {name: 'Outros', type: 'variable', color: '#64748b', icon: 'fa-box'}
+        {name: 'Alimentação', type: 'fixed', color: '#f59e0b', icon: 'fa-utensils', budget_limit: 0},
+        {name: 'Moradia', type: 'fixed', color: '#3b82f6', icon: 'fa-home', budget_limit: 0},
+        {name: 'Transporte', type: 'variable', color: '#6366f1', icon: 'fa-car', budget_limit: 0},
+        {name: 'Saúde', type: 'fixed', color: '#ef4444', icon: 'fa-heartbeat', budget_limit: 0},
+        {name: 'Educação', type: 'fixed', color: '#8b5cf6', icon: 'fa-graduation-cap', budget_limit: 0},
+        {name: 'Lazer', type: 'variable', color: '#ec4899', icon: 'fa-cocktail', budget_limit: 0},
+        {name: 'Vestuário', type: 'variable', color: '#14b8a6', icon: 'fa-tshirt', budget_limit: 0},
+        {name: 'Investimentos', type: 'investment', color: '#10b981', icon: 'fa-chart-line', budget_limit: 0},
+        {name: 'Outros', type: 'variable', color: '#64748b', icon: 'fa-box', budget_limit: 0}
     ],
     async init() {
         try {
             // Carrega dados do SQL via Preload
             this.transactions = await window.DB.getAllTransactions() || [];
             this.cards = await window.DB.getAllCards() || [];
+            this.recurrences = await window.DB.getRecurring() || [];
             
             const dbCats = await window.DB.getAllCategories() || [];
             if (dbCats && dbCats.length > 0) {
@@ -52,9 +54,76 @@ const Store = {
                 for(const c of this.categories) await window.DB.addCategory(c);
             }
             this.categories.sort((a,b) => a.name.localeCompare(b.name));
+
+            await this.checkRecurringGenerator();
+
         } catch(e) {
             console.error("Erro ao carregar DB", e);
             alert("Erro ao carregar banco de dados!");
+        }
+    },
+    async checkRecurringGenerator() {
+        if(!this.recurrences || !this.recurrences.length) return;
+        
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        let newTransactions = [];
+        
+        for(const rule of this.recurrences) {
+             // Verificar se já existe transação gerada para este mês (recurrence_id e data no mês atual)
+             const exists = this.transactions.some(t => {
+                 if(t.recurrence_id !== rule.id) return false;
+                 // Parse date YYYY-MM-DD
+                 const parts = t.date.split('-');
+                 // parts[0] = Year, parts[1] = Month (01-12)
+                 return parseInt(parts[1]) - 1 === currentMonth && parseInt(parts[0]) === currentYear;
+             });
+             
+             if(!exists) {
+                 // Gerar
+                 let day = rule.day;
+                 // Validar dia (ex: 31 em Fev)
+                 const maxDimensions = new Date(currentYear, currentMonth+1, 0).getDate();
+                 day = Math.min(day, maxDimensions);
+                 
+                 const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                 
+                 newTransactions.push({
+                     id: Math.floor(Date.now() + Math.random() * 1000), // Temp ID
+                     desc: rule.desc,
+                     amount: rule.amount,
+                     date: dateStr,
+                     method: 'debit', // Padrão
+                     status: 'pending',
+                     type: 'expense',
+                     cardId: null,
+                     use5thDay: false,
+                     category: rule.category,
+                     checked: false,
+                     recurrence_id: rule.id
+                 });
+             }
+        }
+        
+        if(newTransactions.length > 0) {
+            console.log("Gerando recorrências:", newTransactions);
+            for(const t of newTransactions) {
+                await window.DB.saveTransaction(t);
+            }
+            // Recarrega transações para view atualizada
+            this.transactions = await window.DB.getAllTransactions();
+        }
+    },
+    async saveRecurring(r) {
+        await window.DB.saveRecurring(r);
+        await this.init();
+    },
+    async deleteRecurring(id) {
+        if(confirm('Deseja parar esta recorrência? As transações geradas não serão apagadas.')) {
+            await window.DB.deleteRecurring(id);
+            await this.init();
         }
     },
     getCategory(name) {
@@ -77,9 +146,9 @@ const Store = {
         await this.init();
     },
     async addCategory(catObj) {
-        // catObj: {name, type, color, icon} ou string (compatibilidade)
+        // catObj: {name, type, color, icon, budget_limit} ou string (compatibilidade)
         if(typeof catObj === 'string') {
-            catObj = { name: catObj.trim(), type: 'variable', color: '#64748b', icon: 'fa-tag' };
+            catObj = { name: catObj.trim(), type: 'variable', color: '#64748b', icon: 'fa-tag', budget_limit: 0 };
         }
         
         if (catObj.name && !this.categories.some(c => c.name === catObj.name)) {
@@ -88,6 +157,14 @@ const Store = {
             return true;
         }
         return false;
+    },
+    async updateCategoryBudget(name, amount) {
+        const cat = this.categories.find(c => c.name === name);
+        if(cat) {
+            cat.budget_limit = parseFloat(amount) || 0;
+            // Preserva outros campos
+            await window.DB.updateCategory(cat);
+        }
     },
     async deleteCategory(name) {
         if(confirm(`Tem certeza que deseja remover a categoria "${name}"? Os lançamentos ficarão sem metadados.`)) {
@@ -319,12 +396,14 @@ const App = {
         const name = document.getElementById('cat-manage-name').value;
         const type = document.getElementById('cat-manage-type').value;
         const color = document.getElementById('cat-manage-color').value;
+        const budget = parseFloat(document.getElementById('cat-manage-budget').value) || 0;
         
         if(!name) return alert("Digite o nome da categoria!");
         
-        const success = await Store.addCategory({ name, type, color });
+        const success = await Store.addCategory({ name, type, color, budget_limit: budget });
         if(success) {
             document.getElementById('cat-manage-name').value = '';
+            document.getElementById('cat-manage-budget').value = ''; // Clear budget field
             this.renderCategoryConfigList();
         } else {
             alert("Categoria já existe!");
@@ -353,9 +432,17 @@ const App = {
                         <p class="text-[10px] text-slate-500 uppercase font-bold">${translateType[c.type] || c.type}</p>
                     </div>
                 </div>
-                <button onclick="Store.deleteCategory('${c.name}').then(() => App.renderCategoryConfigList())" class="text-rose-400 hover:text-rose-600 transition">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                     <div class="flex flex-col items-end mr-2">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase">Teto</span>
+                        <input type="number" value="${c.budget_limit || ''}" placeholder="∞" 
+                            class="w-20 p-1 text-xs border border-slate-200 rounded focus:border-indigo-500 text-right font-bold text-slate-700" 
+                            onchange="Store.updateCategoryBudget('${c.name}', this.value)" title="Definir Teto de Gastos (0 = Sem Limite)">
+                     </div>
+                    <button onclick="Store.deleteCategory('${c.name}').then(() => App.renderCategoryConfigList())" class="text-rose-400 hover:text-rose-600 transition w-8">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
         `).join('');
     },
@@ -699,11 +786,13 @@ const App = {
             this.renderCategoryChart(monthTrans);
             this.renderAgenda(monthTrans);
             this.renderDashboardSummary(monthTrans);
+            this.renderBudgetProgress(monthTrans);
         }
         if(this.currentView === 'lancamentos') this.renderList(monthTrans);
         
         if(this.currentView === 'analise') this.renderAnalise(monthTrans);
         if(this.currentView === 'conselheiro') this.renderConselheiro();
+        if(this.currentView === 'config') this.renderConfig();
 
         // LÓGICA DE CARTÕES
         if(this.currentView === 'cartoes') {
@@ -814,6 +903,69 @@ const App = {
                     </td>
             </tr>`;
         }).join('');
+    },
+
+    renderBudgetProgress(monthTrans) {
+        const container = document.getElementById('budget-progress-container');
+        if(!container) return;
+        
+        // Agrupar gastos por categoria
+        const expensesByCat = {};
+        monthTrans.filter(t => t.type === 'expense').forEach(t => {
+            expensesByCat[t.category] = (expensesByCat[t.category] || 0) + t.amount;
+        });
+        
+        let html = '';
+        let hasBudgets = false;
+
+        Store.categories.forEach(c => {
+            if(c.budget_limit > 0) {
+                hasBudgets = true;
+                const spent = expensesByCat[c.name] || 0;
+                const pct = Math.min(100, (spent / c.budget_limit) * 100);
+                const isOver = spent > c.budget_limit;
+                
+                // Cores: Safe (Emerald) < 80% < Warning (Amber) < 100% < Danger (Rose)
+                let statusColor = 'bg-emerald-500';
+                let textColor = 'text-emerald-600';
+                
+                if(isOver) {
+                    statusColor = 'bg-rose-500';
+                    textColor = 'text-rose-600';
+                } else if(pct >= 80) {
+                    statusColor = 'bg-amber-400';
+                    textColor = 'text-amber-600';
+                }
+                
+                html += `
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:shadow-md transition">
+                    <div class="flex justify-between items-center mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded flex items-center justify-center text-white text-xs" style="background-color: ${c.color}"><i class="fas ${c.icon || 'fa-tag'}"></i></div>
+                            <span class="font-bold text-slate-700 text-sm">${c.name}</span>
+                        </div>
+                        <span class="text-xs font-bold ${textColor}">${Math.round((spent / c.budget_limit) * 100)}%</span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-200 rounded-full overflow-hidden mb-2">
+                        <div class="h-full ${statusColor} transition-all duration-500" style="width: ${pct}%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                        <span>${this.fmt(spent)}</span>
+                        <span>Meta: ${this.fmt(c.budget_limit)}</span>
+                    </div>
+                </div>`;
+            }
+        });
+        
+        if(!hasBudgets) {
+            container.innerHTML = `<div class="col-span-1 md:col-span-3 flex flex-col items-center justify-center text-slate-400 py-6 border-2 border-dashed border-slate-200 rounded-xl">
+                <i class="fas fa-bullseye text-3xl mb-2 opacity-30"></i>
+                <p class="text-sm font-bold opacity-60">Nenhum teto de gastos definido</p>
+                <p class="text-xs italic opacity-50 mt-1 cursor-pointer hover:text-indigo-500 transition" onclick="App.navigate('config')">Vá em Ajustes para definir metas por categoria</p>
+            </div>`;
+        } else {
+            container.innerHTML = html;
+        }
     },
 
     renderList(data) {
@@ -1147,6 +1299,55 @@ const App = {
                 }
             }
         });
+    },
+
+    async addRecurring() {
+        const desc = document.getElementById('rec-desc').value;
+        const amount = parseFloat(document.getElementById('rec-amount').value);
+        const day = parseInt(document.getElementById('rec-day').value);
+        const category = document.getElementById('rec-category').value;
+        
+        if(!desc || !amount || !day || !category) return alert("Preencha todos os campos!");
+        
+        await Store.saveRecurring({
+            id: Date.now(), // será substituido pelo DB se novo
+            desc, amount, day, category, active: 1
+        });
+        
+        alert("Despesa fixa adicionada com sucesso!");
+        // Limpar campos
+        document.getElementById('rec-desc').value = '';
+        document.getElementById('rec-amount').value = '';
+        document.getElementById('rec-day').value = '';
+        
+        this.renderConfig();
+    },
+
+    renderConfig() {
+        // --- RECORRÊNCIAS ---
+        const recContainer = document.getElementById('config-recurring-list');
+        const recCatSelect = document.getElementById('rec-category');
+        
+        if(recCatSelect && recCatSelect.options.length <= 1) { // Só preenche se não tiver (1 é o placeholder)
+             recCatSelect.innerHTML = '<option value="" disabled selected>Categoria</option>' + 
+                Store.categories.filter(c => c.type === 'fixed' || c.type === 'variable').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        }
+
+        if(recContainer) {
+            if(!Store.recurrences || Store.recurrences.length === 0) {
+                recContainer.innerHTML = `<p class="text-slate-400 text-sm italic">Nenhuma despesa fixa cadastrada. Adicione aluguel, luz, internet, etc.</p>`;
+            } else {
+                recContainer.innerHTML = Store.recurrences.map(r => `
+                    <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-lg">
+                        <div>
+                            <p class="font-bold text-slate-800">${r.desc}</p>
+                            <p class="text-xs text-slate-500">Todo dia ${r.day} • ${this.fmt(r.amount)} • <span class="uppercase font-bold text-[10px] bg-slate-100 px-1 rounded">${r.category}</span></p>
+                        </div>
+                        <button onclick="Store.deleteRecurring(${r.id})" class="text-rose-400 hover:text-rose-600 transition" title="Parar Recorrência"><i class="fas fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+        }
     },
 
     renderAnalise(monthTrans) {

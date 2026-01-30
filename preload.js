@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('DB', {
   updateCategory: (cat) => ipcRenderer.invoke('db-update-category', cat),
   deleteCategory: (name) => ipcRenderer.invoke('db-delete-category', name),
   
+  getRecurring: () => ipcRenderer.invoke('db-get-recurring'),
+  saveRecurring: (r) => ipcRenderer.invoke('db-save-recurring', r),
+  deleteRecurring: (id) => ipcRenderer.invoke('db-delete-recurring', id),
+  
   nuke: () => ipcRenderer.invoke('db-nuke'),
   seed: () => ipcRenderer.invoke('db-seed')
 })

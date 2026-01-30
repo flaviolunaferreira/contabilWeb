@@ -139,6 +139,19 @@
                     </div>
                 </div>
 
+            <!-- Controle Orçamentário -->
+            <div class="glass-card p-6 mt-6 border-l-4 border-indigo-500">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="font-black text-slate-900 text-lg">Controle de Orçamento</h3>
+                        <p class="text-xs text-indigo-600 font-bold uppercase tracking-wide">Planejado vs Realizado</p>
+                    </div>
+                </div>
+                <div id="budget-progress-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Injetado via JS -->
+                </div>
+            </div>
+
             <!-- Nova Seção de Agrupamento -->
             <div class="glass-card p-6 mt-6">
                 <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
@@ -291,6 +304,34 @@
                     </div>
                 </div>
 
+                <!-- Gestão de Recorrências -->
+                <div class="glass-card p-8 border-emerald-100 bg-emerald-50/30">
+                    <h3 class="font-bold text-lg text-emerald-700 mb-4 flex items-center gap-2"><i class="fas fa-redo"></i> Despesas Fixas & Recorrências</h3>
+                    <p class="text-sm text-emerald-600 mb-4">Cadastre contas que chegam todo mês (Aluguel, Luz, Internet). O sistema irá gerá-las automaticamente no dia 1.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Formulário -->
+                        <div class="md:col-span-1 space-y-3">
+                            <input type="text" id="rec-desc" placeholder="Descrição (ex: Aluguel)" class="w-full p-3 bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-500 focus:outline-none">
+                            <div class="flex gap-2">
+                                <input type="number" id="rec-amount" placeholder="Valor Estimado" class="flex-1 p-3 bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-500 focus:outline-none">
+                                <input type="number" id="rec-day" placeholder="Dia" min="1" max="31" class="w-20 p-3 bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-500 focus:outline-none" title="Dia de vencimento/cobrança">
+                            </div>
+                            <select id="rec-category" class="w-full p-3 bg-white border-2 border-emerald-100 rounded-xl focus:border-emerald-500 focus:outline-none text-slate-600">
+                                <option value="" disabled selected>Carregando...</option>
+                            </select>
+                            <button onclick="App.addRecurring()" class="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 transition">
+                                <i class="fas fa-plus mr-2"></i> Adicionar Recorrência
+                            </button>
+                        </div>
+
+                        <!-- Lista -->
+                        <div class="md:col-span-2 bg-white rounded-xl p-4 shadow-sm max-h-60 overflow-y-auto custom-scroll space-y-2" id="config-recurring-list">
+                            <p class="text-slate-400 text-sm italic p-4">Carregando...</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Nova Seção: Gestão de Categorias -->
                 <div class="glass-card p-8 border-indigo-100 bg-indigo-50/30">
                     <h3 class="font-bold text-lg text-indigo-700 mb-4">Gestão de Categorias</h3>
@@ -305,6 +346,7 @@
                                 <option value="investment">Investimento / Patrimônio</option>
                                 <option value="asset">Aquisição de Bens</option>
                             </select>
+                            <input type="number" id="cat-manage-budget" placeholder="Teto de Gastos (0 = Sem Limite)" class="w-full p-3 bg-white border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:outline-none">
                             <div class="flex gap-2">
                                 <input type="color" id="cat-manage-color" value="#6366f1" class="h-12 w-12 rounded-xl border-none cursor-pointer">
                                 <button onclick="App.addCategoryFromConfig()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition">

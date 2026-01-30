@@ -28,6 +28,7 @@ function initDB() {
     
     // Migration simples: tentar adicionar a coluna caso não exista (ignora erro se já existir)
     db.run("ALTER TABLE transactions ADD COLUMN interest_rate REAL", (err) => { /* ignora erroColumn already exists */ })
+    db.run("ALTER TABLE transactions ADD COLUMN recurrence_id INTEGER", (err) => { /* ignora erro */ })
 
     db.run(`CREATE TABLE IF NOT EXISTS cards (
       id INTEGER PRIMARY KEY,
@@ -37,14 +38,27 @@ function initDB() {
       due INTEGER
     )`)
 
+    db.run(`CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      desc TEXT,
+      amount REAL,
+      day INTEGER,
+      category TEXT,
+      active INTEGER DEFAULT 1
+    )`)
+
     // NOVA ESTRUTURA DE CATEGORIAS
     db.run(`CREATE TABLE IF NOT EXISTS category_meta (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT UNIQUE,
       type TEXT,
       color TEXT,
-      icon TEXT
+      icon TEXT,
+      budget_limit REAL DEFAULT 0
     )`)
+
+    // Migration simples para Category Budget
+    db.run("ALTER TABLE category_meta ADD COLUMN budget_limit REAL DEFAULT 0", (err) => { /* ignora erro */ })
 
     // Migrar categorias antigas (tabela 'categories' com apenas 'name') para 'category_meta'
     // Primeiro verifica se a tabela antiga existe
@@ -100,10 +114,11 @@ ipcMain.handle('db-add-category', async (event, catObj) => {
     const type = catObj.type || 'variable';
     const color = catObj.color || '#94a3b8';
     const icon = catObj.icon || 'fa-tag';
+    const budget = catObj.budget_limit || 0;
 
     return new Promise((resolve, reject) => {
-        db.run("INSERT OR IGNORE INTO category_meta (name, type, color, icon) VALUES (?, ?, ?, ?)", 
-            [name, type, color, icon], 
+        db.run("INSERT OR IGNORE INTO category_meta (name, type, color, icon, budget_limit) VALUES (?, ?, ?, ?, ?)", 
+            [name, type, color, icon, budget], 
             (err) => {
                 if(err) reject(err)
                 else resolve(true)
@@ -114,8 +129,8 @@ ipcMain.handle('db-add-category', async (event, catObj) => {
 
 ipcMain.handle('db-update-category', async (event, cat) => {
     return new Promise((resolve, reject) => {
-        const query = `UPDATE category_meta SET type=?, color=?, icon=? WHERE name=?`;
-        db.run(query, [cat.type, cat.color, cat.icon, cat.name], (err) => {
+        const query = `UPDATE category_meta SET type=?, color=?, icon=?, budget_limit=? WHERE name=?`;
+        db.run(query, [cat.type, cat.color, cat.icon, cat.budget_limit || 0, cat.name], (err) => {
             if(err) reject(err)
             else resolve(true)
         })
@@ -133,21 +148,54 @@ ipcMain.handle('db-delete-category', async (event, name) => {
 
 ipcMain.handle('db-save-transaction', async (event, t) => {
   return new Promise((resolve, reject) => {
-    const query = `INSERT INTO transactions (id, desc, amount, date, method, status, type, cardId, use5thDay, category, checked, interest_rate) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    const query = `INSERT INTO transactions (id, desc, amount, date, method, status, type, cardId, use5thDay, category, checked, interest_rate, recurrence_id) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET
                    desc=excluded.desc, amount=excluded.amount, date=excluded.date, method=excluded.method, 
                    status=excluded.status, type=excluded.type, cardId=excluded.cardId, 
-                   use5thDay=excluded.use5thDay, category=excluded.category, checked=excluded.checked, interest_rate=excluded.interest_rate`
+                   use5thDay=excluded.use5thDay, category=excluded.category, checked=excluded.checked, 
+                   interest_rate=excluded.interest_rate, recurrence_id=excluded.recurrence_id`
     
     db.run(query, [
       t.id, t.desc, t.amount, t.date, t.method, t.status, t.type, t.cardId, 
-      t.use5thDay ? 1 : 0, t.category, t.checked ? 1 : 0, t.interest_rate || null
+      t.use5thDay ? 1 : 0, t.category, t.checked ? 1 : 0, t.interest_rate || null, t.recurrence_id || null
     ], function(err) {
       if(err) reject(err)
       else resolve(this.lastID || t.id)
     })
   })
+})
+
+ipcMain.handle('db-get-recurring', async () => {
+    return new Promise((resolve, reject) => {
+        db.all("SELECT * FROM recurring_expenses WHERE active = 1", (err, rows) => {
+            if (err) reject(err)
+            else resolve(rows)
+        })
+    })
+})
+
+ipcMain.handle('db-save-recurring', async (event, r) => {
+    return new Promise((resolve, reject) => {
+        const query = `INSERT INTO recurring_expenses (id, desc, amount, day, category, active) 
+                   VALUES (?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(id) DO UPDATE SET
+                   desc=excluded.desc, amount=excluded.amount, day=excluded.day, category=excluded.category, active=excluded.active`;
+        
+        db.run(query, [r.id, r.desc, r.amount, r.day, r.category, r.active !== undefined ? r.active : 1], function(err) {
+            if(err) reject(err)
+            else resolve(this.lastID || r.id)
+        })
+    })
+})
+
+ipcMain.handle('db-delete-recurring', async (event, id) => {
+    return new Promise((resolve, reject) => {
+        db.run("DELETE FROM recurring_expenses WHERE id = ?", [id], (err) => {
+            if(err) reject(err)
+            else resolve(true)
+        })
+    })
 })
 
 ipcMain.handle('db-delete-transaction', async (event, id) => {
