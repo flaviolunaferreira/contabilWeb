@@ -38,6 +38,9 @@
             <div onclick="App.navigate('conselheiro')" id="nav-conselheiro" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
                 <i class="fas fa-brain w-5"></i> Conselheiro
             </div>
+            <div onclick="App.navigate('cadastros')" id="nav-cadastros" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
+                <i class="fas fa-folder-open w-5"></i> Cadastros
+            </div>
             <div onclick="App.navigate('config')" id="nav-config" class="nav-item p-4 rounded-2xl flex items-center gap-3 font-bold text-sm text-slate-500">
                 <i class="fas fa-cog w-5"></i> Ajustes & Backup
             </div>
@@ -251,60 +254,10 @@
                 </div>
             </div>
 
-            <div id="view-config" class="hidden space-y-8">
-                <h2 class="text-2xl font-black text-slate-800">Manutenção</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="glass-card p-8">
-                        <h3 class="font-bold text-lg mb-2">Dados</h3>
-                        <div class="space-y-3">
-                            <button onclick="DataMgr.export()" class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between">
-                                <span><i class="fas fa-download mr-2"></i> Baixar JSON</span>
-                            </button>
-                            <label class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between cursor-pointer">
-                                <span><i class="fas fa-upload mr-2"></i> Importar JSON</span>
-                                <input type="file" class="hidden" accept=".json" onchange="DataMgr.import(event)">
-                            </label>
-                            <button onclick="window.location.reload()" class="w-full p-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl font-bold flex justify-between">
-                                <span><i class="fas fa-sync-alt mr-2"></i> Recalcular Saldos</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="glass-card p-8 border-rose-100 bg-rose-50/30">
-                        <h3 class="font-bold text-lg text-rose-700 mb-2">Reset</h3>
-                        <button onclick="DataMgr.nuke()" class="w-full p-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">APAGAR TUDO</button>
-                        <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-[#006739] hover:bg-[#006739] text-white rounded-xl font-bold">Gerar Dados Teste</button>
-                    </div>
-                </div>
-
-                <!-- Nova Seção de Reparo -->
-                <div class="glass-card p-8 border-orange-100 bg-orange-50/30">
-                    <h3 class="font-bold text-lg text-orange-700 mb-4">Reparo e Limpeza</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Delete by ID -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar ID único</label>
-                            <div class="flex gap-2">
-                                <input type="number" id="config-del-id" placeholder="ID numérico..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
-                                <button onclick="DataMgr.deleteById()" class="px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-200 transition-all hover:scale-105 active:scale-95" title="Apagar item específico">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- Delete by Desc (Batch) -->
-                        <div>
-                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar por Descrição (Lote)</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="config-del-desc" placeholder="Descrição exata..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
-                                <button onclick="DataMgr.deleteByDesc()" class="px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95" title="Apagar TODOS com esta descrição">
-                                    <i class="fas fa-biohazard mr-2"></i> Limpar
-                                </button>
-                            </div>
-                            <p class="text-xs text-orange-600 mt-2 font-semibold"><i class="fas fa-exclamation-triangle"></i> Atenção: Remove TODOS os registros começando com este texto.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Gestão de Recorrências -->
+            <div id="view-cadastros" class="hidden space-y-8">
+                 <h2 class="text-2xl font-black text-slate-800">Cadastros e Definições</h2>
+                 
+                 <!-- Gestão de Recorrências -->
                 <div class="glass-card p-8 border-emerald-100 bg-emerald-50/30">
                     <h3 class="font-bold text-lg text-emerald-700 mb-4 flex items-center gap-2"><i class="fas fa-redo"></i> Despesas Fixas & Recorrências</h3>
                     <p class="text-sm text-emerald-600 mb-4">Cadastre contas que chegam todo mês (Aluguel, Luz, Internet). O sistema irá gerá-las automaticamente no dia 1.</p>
@@ -358,6 +311,60 @@
                         <!-- Lista -->
                         <div class="md:col-span-2 bg-white rounded-xl p-4 shadow-sm max-h-60 overflow-y-auto custom-scroll" id="config-cat-list">
                             <!-- Injetado via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-config" class="hidden space-y-8">
+                <h2 class="text-2xl font-black text-slate-800">Manutenção</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="glass-card p-8">
+                        <h3 class="font-bold text-lg mb-2">Dados</h3>
+                        <div class="space-y-3">
+                            <button onclick="DataMgr.export()" class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between">
+                                <span><i class="fas fa-download mr-2"></i> Baixar JSON</span>
+                            </button>
+                            <label class="w-full p-4 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 flex justify-between cursor-pointer">
+                                <span><i class="fas fa-upload mr-2"></i> Importar JSON</span>
+                                <input type="file" class="hidden" accept=".json" onchange="DataMgr.import(event)">
+                            </label>
+                            <button onclick="window.location.reload()" class="w-full p-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl font-bold flex justify-between">
+                                <span><i class="fas fa-sync-alt mr-2"></i> Recalcular Saldos</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="glass-card p-8 border-rose-100 bg-rose-50/30">
+                        <h3 class="font-bold text-lg text-rose-700 mb-2">Reset</h3>
+                        <button onclick="DataMgr.nuke()" class="w-full p-4 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold">APAGAR TUDO</button>
+                        <button onclick="DataMgr.seed()" class="w-full mt-2 p-4 bg-[#006739] hover:bg-[#006739] text-white rounded-xl font-bold">Gerar Dados Teste</button>
+                    </div>
+                </div>
+
+                <!-- Nova Seção de Reparo -->
+                <div class="glass-card p-8 border-orange-100 bg-orange-50/30">
+                    <h3 class="font-bold text-lg text-orange-700 mb-4">Reparo e Limpeza</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Delete by ID -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar ID único</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="config-del-id" placeholder="ID numérico..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
+                                <button onclick="DataMgr.deleteById()" class="px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold shadow-lg shadow-orange-200 transition-all hover:scale-105 active:scale-95" title="Apagar item específico">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- Delete by Desc (Batch) -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-500 mb-2">Apagar por Descrição (Lote)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="config-del-desc" placeholder="Descrição exata..." class="flex-1 p-3 bg-white border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors">
+                                <button onclick="DataMgr.deleteByDesc()" class="px-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95" title="Apagar TODOS com esta descrição">
+                                    <i class="fas fa-biohazard mr-2"></i> Limpar
+                                </button>
+                            </div>
+                            <p class="text-xs text-orange-600 mt-2 font-semibold"><i class="fas fa-exclamation-triangle"></i> Atenção: Remove TODOS os registros começando com este texto.</p>
                         </div>
                     </div>
                 </div>

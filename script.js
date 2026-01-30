@@ -377,7 +377,7 @@ const App = {
         document.getElementById(`nav-${view}`).classList.add('active');
         
         // Hide all views
-        ['dashboard', 'lancamentos', 'cartoes', 'analise', 'conselheiro', 'config'].forEach(v => {
+        ['dashboard', 'lancamentos', 'cartoes', 'analise', 'conselheiro', 'cadastros', 'config'].forEach(v => {
             const el = document.getElementById(`view-${v}`);
             if(el) el.classList.add('hidden');
         });
@@ -386,7 +386,7 @@ const App = {
         if(target) target.classList.remove('hidden');
         
         if(view === 'conselheiro') this.renderConselheiro();
-        if(view === 'config') this.renderCategoryConfigList();
+        if(view === 'cadastros') this.renderCadastros();
         
         this.render();
     },
@@ -402,8 +402,28 @@ const App = {
         
         const success = await Store.addCategory({ name, type, color, budget_limit: budget });
         if(success) {
-            document.getElementById('cat-manage-name').value = '';
-            document.getElementById('cat-manage-budget').value = ''; // Clear budget field
+            const nameInput = document.getElementById('cat-manage-name');
+            const budgetInput = document.getElementById('cat-manage-budget');
+            const typeInput = document.getElementById('cat-manage-type');
+            const colorInput = document.getElementById('cat-manage-color');
+            if (nameInput) {
+                nameInput.value = '';
+                nameInput.disabled = false;
+                nameInput.readOnly = false;
+            }
+            if (budgetInput) {
+                budgetInput.value = '';
+                budgetInput.disabled = false;
+                budgetInput.readOnly = false;
+            }
+            if (typeInput) {
+                typeInput.disabled = false;
+                typeInput.readOnly = false;
+            }
+            if (colorInput) {
+                colorInput.disabled = false;
+                colorInput.readOnly = false;
+            }
             this.renderCategoryConfigList();
         } else {
             alert("Categoria já existe!");
@@ -792,7 +812,7 @@ const App = {
         
         if(this.currentView === 'analise') this.renderAnalise(monthTrans);
         if(this.currentView === 'conselheiro') this.renderConselheiro();
-        if(this.currentView === 'config') this.renderConfig();
+        if(this.currentView === 'cadastros') this.renderCadastros();
 
         // LÓGICA DE CARTÕES
         if(this.currentView === 'cartoes') {
@@ -1315,20 +1335,40 @@ const App = {
         });
         
         alert("Despesa fixa adicionada com sucesso!");
-        // Limpar campos
-        document.getElementById('rec-desc').value = '';
-        document.getElementById('rec-amount').value = '';
-        document.getElementById('rec-day').value = '';
-        
-        this.renderConfig();
+        // Limpar e reabilitar campos
+        const descInput = document.getElementById('rec-desc');
+        const amountInput = document.getElementById('rec-amount');
+        const dayInput = document.getElementById('rec-day');
+        const catInput = document.getElementById('rec-category');
+        if (descInput) {
+            descInput.value = '';
+            descInput.disabled = false;
+            descInput.readOnly = false;
+        }
+        if (amountInput) {
+            amountInput.value = '';
+            amountInput.disabled = false;
+            amountInput.readOnly = false;
+        }
+        if (dayInput) {
+            dayInput.value = '';
+            dayInput.disabled = false;
+            dayInput.readOnly = false;
+        }
+        if (catInput) {
+            catInput.disabled = false;
+            catInput.readOnly = false;
+        }
+        this.renderCadastros();
     },
 
-    renderConfig() {
+    renderCadastros() {
         // --- RECORRÊNCIAS ---
         const recContainer = document.getElementById('config-recurring-list');
         const recCatSelect = document.getElementById('rec-category');
         
-        if(recCatSelect && recCatSelect.options.length <= 1) { // Só preenche se não tiver (1 é o placeholder)
+        if(recCatSelect) {
+             // Sempre atualizar para pegar categorias novas/deletadas
              recCatSelect.innerHTML = '<option value="" disabled selected>Categoria</option>' + 
                 Store.categories.filter(c => c.type === 'fixed' || c.type === 'variable').map(c => `<option value="${c.name}">${c.name}</option>`).join('');
         }
@@ -1348,6 +1388,9 @@ const App = {
                 `).join('');
             }
         }
+
+        // Renderizar Categorias também
+        this.renderCategoryConfigList();
     },
 
     renderAnalise(monthTrans) {
