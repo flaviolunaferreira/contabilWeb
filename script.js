@@ -348,6 +348,76 @@ const Modal = {
     }
 };
 
+// --- BOTÃO DE INCLUSÃO PADRÃO ---
+function setupInclusionButton(formSelector, buttonSelector, requiredFields) {
+    const form = document.querySelector(formSelector);
+    const button = document.querySelector(buttonSelector);
+    if (!form || !button) return;
+
+    function resetFormState() {
+        // Limpa campos
+        requiredFields.forEach(id => {
+            const el = form.querySelector('#' + id);
+            if (el) {
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = false;
+                } else {
+                    el.value = '';
+                }
+                el.disabled = false;
+                el.readOnly = false;
+            }
+        });
+        // Habilita todos os inputs
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            el.disabled = false;
+            el.readOnly = false;
+        });
+        button.innerText = 'Novo';
+        button.disabled = false;
+    }
+
+    // Função para checar estado dos campos
+    function updateButtonState() {
+        const values = requiredFields.map(id => {
+            const el = form.querySelector('#' + id);
+            return el && el.value.trim() !== '';
+        });
+        if (values.every(Boolean)) {
+            button.innerText = 'Salvar';
+            button.disabled = false;
+        } else if (values.some(Boolean)) {
+            button.innerText = 'Complete os dados';
+            button.disabled = true;
+        } else {
+            button.innerText = 'Novo';
+            button.disabled = false;
+        }
+    }
+
+    // Listeners para inputs
+    requiredFields.forEach(id => {
+        const el = form.querySelector('#' + id);
+        if (el) {
+            el.addEventListener('input', updateButtonState);
+        }
+    });
+
+    // Ao clicar em salvar, reseta o estado
+    button.addEventListener('click', function() {
+        if (button.innerText === 'Salvar') {
+            setTimeout(() => {
+                resetFormState();
+                updateButtonState();
+            }, 200); // Pequeno delay para garantir que a inclusão ocorra antes do reset
+        }
+    });
+
+    // Estado inicial
+    resetFormState();
+    updateButtonState();
+}
+
 // --- APP ---
 const App = {
     currentDate: new Date(),
@@ -1913,4 +1983,24 @@ const DataMgr = {
 
 // Não precisamos esperar onload se o script estiver no final do body, 
 // mas para garantir:
-window.onload = () => App.init();
+window.onload = () => {
+    App.init();
+    // Exemplo de uso para o formulário de recorrências
+    setupInclusionButton(
+        '.glass-card.p-8.border-emerald-100',
+        '.glass-card.p-8.border-emerald-100 button',
+        ['rec-desc', 'rec-amount', 'rec-day', 'rec-category']
+    );
+    // Exemplo de uso para o formulário de categorias
+    setupInclusionButton(
+        '.glass-card.p-8.border-indigo-100',
+        '.glass-card.p-8.border-indigo-100 button',
+        ['cat-manage-name', 'cat-manage-type', 'cat-manage-budget', 'cat-manage-color']
+    );
+    // Exemplo de uso para o modal de transação
+    setupInclusionButton(
+        '#modal-transaction',
+        '#btn-save-transaction',
+        ['t-desc', 't-amount', 't-date', 't-category']
+    );
+};
